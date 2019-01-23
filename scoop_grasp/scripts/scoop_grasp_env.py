@@ -20,7 +20,7 @@ class ScoopEnv:
     CLOSE = 2
     OPEN = 3
 
-    def __init__(self, port=19997):
+    def __init__(self, port=19997, memory_size=60):
         rospy.init_node('env', anonymous=True)
 
         self.sim_client = utils.connectToSimulation('127.0.0.1', port)
@@ -39,10 +39,10 @@ class ScoopEnv:
         self.narrow_position = None
         self.wide_position = None
 
-        self.rdd_position = [0 for _ in range(2 * 60)]
-        self.rdd_force = [0 for _ in range(2 * 60)]
-        self.narrow_p = [0 for _ in range(60)]
-        self.narrow_t = [0 for _ in range(60)]
+        self.rdd_position = [0 for _ in range(2 * memory_size)]
+        self.rdd_force = [0 for _ in range(2 * memory_size)]
+        self.narrow_p = [0 for _ in range(memory_size)]
+        self.narrow_t = [0 for _ in range(memory_size)]
         self.rdd_sub = rospy.Subscriber('sim/rdd_joints', Float32MultiArray, self.rddJointsCallback, queue_size=1)
 
         self.tip_position = None
@@ -156,7 +156,7 @@ class ScoopEnv:
             utils.setObjectPositionOneShot(self.sim_client, self.ur5.UR5_target, target_pose[:3, 3])
 
         elif a == self.CLOSE:
-            self.rdd.setFingerPos(0.)
+            self.rdd.setFingerPos(-0.1)
 
         elif a == self.OPEN:
             self.rdd.setFingerPos()

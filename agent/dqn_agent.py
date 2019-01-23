@@ -100,6 +100,17 @@ class DQNAgent:
             return action, q_value
         return action
 
+    @staticmethod
+    def getNonFinalNextStateBatch(mini_batch):
+        non_final_next_states = torch.cat([s for s in mini_batch.next_state
+                                           if s is not None])
+        return non_final_next_states
+
+    @staticmethod
+    def getStateBatch(mini_batch):
+        state_batch = torch.cat(mini_batch.state)
+        return state_batch
+
     def optimizeModel(self):
         """
         one step update for the model
@@ -111,9 +122,8 @@ class DQNAgent:
         mini_batch = Transition(*zip(*transitions))
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                                 mini_batch.next_state)), device=self.device, dtype=torch.uint8)
-        non_final_next_states = torch.cat([s for s in mini_batch.next_state
-                                           if s is not None])
-        state_batch = torch.cat(mini_batch.state)
+        non_final_next_states = self.getNonFinalNextStateBatch(mini_batch)
+        state_batch = self.getStateBatch(mini_batch)
         action_batch = torch.cat(mini_batch.action)
         reward_batch = torch.cat(mini_batch.reward)
 
@@ -190,7 +200,7 @@ class DQNAgent:
                 self.state = next_state
             if self.episodes_done % self.target_update == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
-            self.save_checkpoint()
+        self.save_checkpoint()
 
     def save_checkpoint(self):
         """
