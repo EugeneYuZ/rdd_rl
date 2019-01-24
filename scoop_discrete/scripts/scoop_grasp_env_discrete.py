@@ -107,6 +107,8 @@ class ScoopEnv:
         :return: the observation, List[List[float], List[float]]
         """
         p = copy(self.narrow_p)
+        if len(p) == 0:
+            p = [0.]
         xs = [i for i in range(len(p))]
         resampled = np.interp(np.linspace(0, len(p)-1, 20), xs, p).tolist()
         return resampled
@@ -164,17 +166,25 @@ class ScoopEnv:
             self.rdd.setFingerPos(-0.1)
             _finger_pos = self.narrow_position
             time.sleep(0.1)
+            t = 0
             while abs(_finger_pos - self.narrow_position) > 0.01:
                 _finger_pos = self.narrow_position
                 time.sleep(0.1)
+                t += 1
+                if t == 10:
+                    break
 
         elif a == self.OPEN:
             self.rdd.setFingerPos()
             _finger_pos = self.narrow_position
             time.sleep(0.1)
+            t = 0
             while abs(_finger_pos - self.narrow_position) > 0.01:
                 _finger_pos = self.narrow_position
                 time.sleep(0.1)
+                t += 1
+                if t == 10:
+                    break
 
         cube_orientation = self.cube_orientation
         cube_position = self.cube_position
