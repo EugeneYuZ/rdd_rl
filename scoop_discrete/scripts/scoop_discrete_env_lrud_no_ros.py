@@ -35,55 +35,46 @@ class ScoopEnv:
 
         self.open_position = 0.3
 
-        # self.narrow_position = None
-        # self.tip_position = None
-        # self.tip_orientation = None
-        # self.target_position = None
-        # self.target_orientation = None
-        # self.cube_position = None
-        # self.cube_orientation = None
+    # def getSignalsFromSim(self):
+    #     while True:
+    #         if not self.running:
+    #             time.sleep(0.1)
+    #             continue
+    #         sim_ret, data = vrep.simxGetFloatSignal(self.sim_client, 'theta', vrep.simx_opmode_oneshot)
+    #         if sim_ret == 0:
+    #             # self.theta = vrep.simxUnpackFloats(data)
+    #             self.narrow_position = data
+    #             self.lock.acquire(True)
+    #             if len(self.theta) == 0:
+    #                 self.theta.append(data)
+    #             elif len(self.theta) < 1000 and data != self.theta[-1]:
+    #                 self.theta.append(data)
+    #             self.lock.release()
+    #
+    #         sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'tip_pos', vrep.simx_opmode_oneshot)
+    #         if sim_ret == 0:
+    #             data = vrep.simxUnpackFloats(data)
+    #             self.tip_position = data[:3]
+    #             self.tip_orientation = data[3:]
+    #
+    #         sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'target_pos', vrep.simx_opmode_oneshot)
+    #         if sim_ret == 0:
+    #             data = vrep.simxUnpackFloats(data)
+    #             self.target_position = data[:3]
+    #             self.target_orientation = data[3:]
+    #
+    #         sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'cube_pos', vrep.simx_opmode_oneshot)
+    #         if sim_ret == 0:
+    #             data = vrep.simxUnpackFloats(data)
+    #             self.cube_position = data[:3]
+    #             self.cube_orientation = data[3:]
 
-        self.theta = []
-
-        self.lock = thread.allocate_lock()
-
-        self.running = False
-
-        thread.start_new_thread(self.getSignalsFromSim, ())
-
-    def getSignalsFromSim(self):
-        while True:
-            if not self.running:
-                time.sleep(0.1)
-                continue
-            sim_ret, data = vrep.simxGetFloatSignal(self.sim_client, 'theta', vrep.simx_opmode_oneshot)
-            if sim_ret == 0:
-                self.lock.acquire(True)
-                if len(self.theta) == 0:
-                    self.theta.append(data)
-                elif len(self.theta) < 1000 and data != self.theta[-1]:
-                    self.theta.append(data)
-                self.lock.release()
-            # sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'tip_pos', vrep.simx_opmode_blocking)
-            # if sim_ret == 0:
-            #     data = vrep.simxUnpackFloats(data)
-            #     self.tip_position = data[:3]
-            #     self.tip_orientation = data[3:]
-            #
-            # sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'target_pos', vrep.simx_opmode_blocking)
-            # if sim_ret == 0:
-            #     data = vrep.simxUnpackFloats(data)
-            #     self.target_position = data[:3]
-            #     self.target_orientation = data[3:]
-            #
-            # sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'cube_pos', vrep.simx_opmode_blocking)
-            # if sim_ret == 0:
-            #     data = vrep.simxUnpackFloats(data)
-            #     self.cube_position = data[:3]
-            #     self.cube_orientation = data[3:]
+    def sendClearSignal(self):
+        sim_ret = vrep.simxSetIntegerSignal(self.sim_client, 'clear', 1, utils.VREP_ONESHOT)
 
     def getObs(self):
-        p = copy(self.theta)
+        sim_ret, data = vrep.simxGetStringSignal(self.sim_client, 'theta', vrep.simx_opmode_blocking)
+        p = vrep.simxUnpackFloats(data)
         if len(p) == 0:
             p = [0.]
         xs = [i for i in range(len(p))]
@@ -104,6 +95,7 @@ class ScoopEnv:
 
         sim_ret, self.cube = utils.getObjectHandle(self.sim_client, 'cube')
 
+        # utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, [-0.2, 0.6, 0.08])
         utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, [-0.2, 0.6, 0.15])
 
         dy = 0.3 * np.random.random()
@@ -112,16 +104,12 @@ class ScoopEnv:
         target_pose = current_pose.copy()
         target_pose[1, 3] += dy
         target_pose[2, 3] += dz
+
         self.rdd.setFingerPos()
 
+        self.sendClearSignal()
         self.ur5.moveTo(target_pose)
 
-        self.running = True
-
-        self.lock.acquire(True)
-        self.theta = []
-        self.lock.release()
-        time.sleep(0.5)
         return self.getObs()
 
     def step(self, a):
@@ -130,38 +118,25 @@ class ScoopEnv:
         :param a: action, int
         :return: observation, reward, done, info
         """
-        self.lock.acquire()
-        self.theta = []
-        self.lock.release()
+        self.sendClearSignal()
+        sim_ret, target_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
+        sim_ret, target_orientation = utils.getObjectOrientation(self.sim_client, self.ur5.UR5_target)
+        target_pose = transformations.euler_matrix(target_orientation[0], target_orientation[1], target_orientation[2])
+        target_pose[:3, -1] = target_position
 
-        sim_ret, current_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
-        sim_ret, current_orientation = utils.getObjectOrientation(self.sim_client, self.ur5.UR5_target)
-        print 'current_position: ', current_position
-        print 'current_orientation: ', current_orientation
-        # current_position = copy(self.target_position)
-        # current_orientation = copy(self.target_orientation)
-        target_pose = transformations.euler_matrix(current_orientation[0], current_orientation[1], current_orientation[2])
-        target_pose[:3, -1] = current_position
         if a == self.RIGHT:
-            target_pose[1, 3] -= 0.03
+            target_pose[1, 3] -= 0.05
         elif a == self.LEFT:
-            target_pose[1, 3] += 0.03
+            target_pose[1, 3] += 0.05
         elif a == self.UP:
             target_pose[2, 3] += 0.03
         elif a == self.DOWN:
             target_pose[2, 3] -= 0.03
         self.ur5.moveTo(target_pose)
-        # utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, target_pose[:3, 3])
 
         sim_ret, cube_orientation = utils.getObjectOrientation(self.sim_client, self.cube)
         sim_ret, cube_position = utils.getObjectPosition(self.sim_client, self.cube)
         sim_ret, target_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
-
-        # cube_orientation = copy(self.cube_orientation)
-        # cube_position = copy(self.cube_position)
-        # tip_position = copy(self.tip_position)
-        # narrow_position = copy(self.narrow_position)
-        # target_position = copy(self.target_position)
 
         # arm is in wrong pose
         # sim_ret, target_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
@@ -172,7 +147,7 @@ class ScoopEnv:
 
         # cube in wrong position
         while any(np.isnan(cube_position)):
-            sim_ret, cube_position = utils.getObjectPosition(self.sim_client, self.cube)
+            res, cube_position = utils.getObjectPosition(self.sim_client, self.cube)
         if cube_position[0] < self.cube_start_position[0] - self.cube_size[0] or \
                 cube_position[0] > self.cube_start_position[0] + self.cube_size[0] or \
                 cube_position[1] < self.cube_start_position[1] - self.cube_size[1] or \
