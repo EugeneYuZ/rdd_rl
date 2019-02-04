@@ -29,8 +29,8 @@ class ConvDQN(torch.nn.Module):
 
 class ConvDQNAgent(DQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=128, target_update_frequency=10):
-        saving_dir = '/home/ur5/thesis/rdd_rl/scoop_discrete/data/dqn_lrud'
+                 gamma=0.99, memory_size=10000, batch_size=128, target_update_frequency=20):
+        saving_dir = '/home/ur5/thesis/rdd_rl/scoop_discrete/data/dqn_lrud_3'
         DQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                           target_update_frequency, saving_dir)
 
@@ -82,5 +82,14 @@ class ConvDQNAgent(DQNAgent):
 if __name__ == '__main__':
     agent = ConvDQNAgent(ConvDQN, model=ConvDQN(), env=ScoopEnv(port=19997),
                          exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.1))
-    agent.load_checkpoint('20190125140730')
+    agent.load_checkpoint('20190204141926')
     agent.train(100000, max_episode_steps=200)
+
+    # agent = ConvDQNAgent(ConvDQN, model=ConvDQN(), env=None,
+    #                      exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.1))
+    # agent.load_checkpoint('20190204141926')
+    # #
+    # plotLearningCurve(agent.episode_rewards)
+    # plt.show()
+    # plotLearningCurve(agent.episode_lengths, label='length', color='r')
+    # plt.show()

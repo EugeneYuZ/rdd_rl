@@ -142,7 +142,7 @@ class ScoopEnv:
         self.target_position = None
         while self.target_position is None:
             time.sleep(0.1)
-        return [0. for _ in range(20)]
+        return self.getObs()
 
     def step(self, a):
         """
@@ -161,9 +161,9 @@ class ScoopEnv:
         elif a == self.LEFT:
             target_pose[1, 3] += 0.05
         elif a == self.UP:
-            target_pose[2, 3] += 0.05
+            target_pose[2, 3] += 0.03
         elif a == self.DOWN:
-            target_pose[2, 3] -= 0.05
+            target_pose[2, 3] -= 0.03
         self.ur5.moveTo(target_pose)
 
         cube_orientation = self.cube_orientation
