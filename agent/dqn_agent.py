@@ -76,6 +76,11 @@ class DQNAgent:
         self.state = None
 
     def forwardPolicyNet(self, state):
+        """
+        forward the policy net and get q values
+        :param state: state passing to the policy net
+        :return: tensor of action size, q values
+        """
         with torch.no_grad():
             q_values = self.policy_net(state)
             return q_values
@@ -102,12 +107,22 @@ class DQNAgent:
 
     @staticmethod
     def getNonFinalNextStateBatch(mini_batch):
+        """
+        get non final next state batch tensor from the mini batch
+        :param mini_batch:
+        :return: tensor
+        """
         non_final_next_states = torch.cat([s for s in mini_batch.next_state
                                            if s is not None])
         return non_final_next_states
 
     @staticmethod
     def getStateBatch(mini_batch):
+        """
+        get state batch tensor from the mini batch
+        :param mini_batch:
+        :return: tensor
+        """
         state_batch = torch.cat(mini_batch.state)
         return state_batch
 
@@ -167,39 +182,56 @@ class DQNAgent:
         """
         return torch.tensor(obs, device=self.device).unsqueeze(0)
 
+    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100):
+        """
+        train the network for on episode
+        :param num_episodes: number of total episodes
+        :param max_episode_steps: number of max steps for each episode
+        :param save_freq: number of episodes per saving
+        :return:
+        """
+        print '------Episode {} / {}------'.format(self.episodes_done, num_episodes)
+        self.resetEnv()
+        r_total = 0
+        for step in range(max_episode_steps):
+            state = self.state
+            action, q = self.selectAction(state, require_q=True)
+            obs_, r, done, info = self.takeAction(action.item())
+            print 'step {}, action: {}, q: {}, reward: {} done: {}' \
+                .format(step, action.item(), q, r, done)
+            r_total += r
+            if done or step == max_episode_steps - 1:
+                next_state = None
+            else:
+                next_state = self.getNextState(obs_)
+            reward = torch.tensor([r], device=self.device, dtype=torch.float)
+            self.memory.push(state, action, next_state, reward)
+            self.optimizeModel()
+            if done or step == max_episode_steps - 1:
+                print '------Episode {} ended, total reward: {}, step: {}------' \
+                    .format(self.episodes_done, r_total, step)
+                print '------Total steps done: {}, current e: {} ------' \
+                    .format(self.steps_done, self.exploration.value(self.steps_done))
+                self.episodes_done += 1
+                self.episode_rewards.append(r_total)
+                self.episode_lengths.append(step)
+                if self.episodes_done % save_freq == 0:
+                    self.save_checkpoint()
+                break
+            self.state = next_state
+        if self.episodes_done % self.target_update == 0:
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+
     def train(self, num_episodes, max_episode_steps=100, save_freq=100):
+        """
+        train the network for given number of episodes
+        :param num_episodes:
+        :param max_episode_steps:
+        :param save_freq:
+        :return:
+        """
         while self.episodes_done < num_episodes:
-            print '------Episode {} / {}------'.format(self.episodes_done, num_episodes)
-            self.resetEnv()
-            r_total = 0
-            for step in range(max_episode_steps):
-                state = self.state
-                action, q = self.selectAction(state, require_q=True)
-                obs_, r, done, info = self.takeAction(action.item())
-                print 'step {}, action: {}, q: {}, reward: {} done: {}' \
-                    .format(step, action.item(), q, r, done)
-                r_total += r
-                if done or step == max_episode_steps - 1:
-                    next_state = None
-                else:
-                    next_state = self.getNextState(obs_)
-                reward = torch.tensor([r], device=self.device, dtype=torch.float)
-                self.memory.push(state, action, next_state, reward)
-                self.optimizeModel()
-                if done or step == max_episode_steps - 1:
-                    print '------Episode {} ended, total reward: {}, step: {}------' \
-                        .format(self.episodes_done, r_total, step)
-                    print '------Total steps done: {}, current e: {} ------' \
-                        .format(self.steps_done, self.exploration.value(self.steps_done))
-                    self.episodes_done += 1
-                    self.episode_rewards.append(r_total)
-                    self.episode_lengths.append(step)
-                    if self.episodes_done % save_freq == 0:
-                        self.save_checkpoint()
-                    break
-                self.state = next_state
-            if self.episodes_done % self.target_update == 0:
-                self.target_net.load_state_dict(self.policy_net.state_dict())
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq)
         self.save_checkpoint()
 
     def save_checkpoint(self):
