@@ -11,8 +11,6 @@ from vrep_arm_toolkit.utils import transformations
 class ScoopEnv:
     RIGHT = 0
     LEFT = 1
-    UP = 2
-    DOWN = 3
 
     def __init__(self, port=19997, memory_size=60):
 
@@ -21,7 +19,7 @@ class ScoopEnv:
         # Create UR5 and restart simulator
         self.rdd = RDD(self.sim_client)
         self.ur5 = UR5(self.sim_client, self.rdd)
-        self.nA = 4
+        self.nA = 2
 
         self.cube = None
         self.cube_start_position = [-0.2, 0.85, 0.025]
@@ -52,21 +50,21 @@ class ScoopEnv:
         time.sleep(1)
 
         sim_ret, self.cube = utils.getObjectHandle(self.sim_client, 'cube')
+        self.rdd.setFingerPos(-0.1)
 
-        # utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, [-0.2, 0.6, 0.08])
-        utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, [-0.2, 0.6, 0.15])
+        utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, [-0.2, 0.6, 0.08])
+        # utils.setObjectPosition(self.sim_client, self.ur5.UR5_target, [-0.2, 0.6, 0.15])
 
         dy = 0.3 * np.random.random()
-        dz = 0.1 * np.random.random() - 0.05
+        # dz = 0.1 * np.random.random() - 0.05
         current_pose = self.ur5.getEndEffectorPose()
         target_pose = current_pose.copy()
         target_pose[1, 3] += dy
-        target_pose[2, 3] += dz
-
-        self.rdd.setFingerPos()
+        # target_pose[2, 3] += dz
 
         self.sendClearSignal()
         self.ur5.moveTo(target_pose)
+        self.rdd.setFingerPos()
 
         return self.getObs()
 
@@ -86,10 +84,6 @@ class ScoopEnv:
             target_pose[1, 3] -= 0.05
         elif a == self.LEFT:
             target_pose[1, 3] += 0.05
-        elif a == self.UP:
-            target_pose[2, 3] += 0.03
-        elif a == self.DOWN:
-            target_pose[2, 3] -= 0.03
         self.ur5.moveTo(target_pose)
 
         sim_ret, cube_orientation = utils.getObjectOrientation(self.sim_client, self.cube)
