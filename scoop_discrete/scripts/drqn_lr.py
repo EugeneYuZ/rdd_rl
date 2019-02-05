@@ -14,7 +14,7 @@ class DRQN(torch.nn.Module):
         self.conv1 = nn.Conv1d(1, 8, 5)
         self.conv2 = nn.Conv1d(8, 16, 3)
         self.lstm = nn.LSTMCell(224+2, 64)
-        self.fc1 = nn.Linear(64, 4)
+        self.fc1 = nn.Linear(64, 2)
 
         self.hidden_size = 64
 
