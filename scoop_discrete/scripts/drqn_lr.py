@@ -62,5 +62,5 @@ if __name__ == '__main__':
     agent = ConvDRQNAgent(DRQN, model=DRQN(), env=ScoopEnv(),
                           exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.1),
                           batch_size=4)
-
+    agent.load_checkpoint('20190205214423')
     agent.train(100000, max_episode_steps=200)

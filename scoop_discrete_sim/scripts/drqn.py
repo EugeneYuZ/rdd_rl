@@ -10,6 +10,7 @@ from util.utils import LinearSchedule
 from scoop_discrete.scripts.drqn_lrud import ConvDRQNAgent
 from env import SimScoopEnv
 
+
 class DRQN(torch.nn.Module):
     def __init__(self):
         super(DRQN, self).__init__()
@@ -37,5 +38,5 @@ if __name__ == '__main__':
                           exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.1),
                           batch_size=2)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/scoop_discrete_sim/data/drqn_lrud'
-
+    agent.load_checkpoint('20190205220111')
     agent.train(100000, max_episode_steps=200)
