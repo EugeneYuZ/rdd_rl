@@ -99,7 +99,7 @@ class DQNAgent:
         if random.random() > e:
             action = q_values.max(1)[1].view(1, 1)
         else:
-            action = torch.tensor([[random.randrange(self.env.nA)]], device=self.device, dtype=torch.long)
+            action = torch.tensor([[random.randrange(self.env.action_space.n)]], device=self.device, dtype=torch.long)
         q_value = q_values.gather(1, action).item()
         if require_q:
             return action, q_value
@@ -163,7 +163,7 @@ class DQNAgent:
         :return: None
         """
         obs = self.env.reset()
-        self.state = torch.tensor(obs, device=self.device).unsqueeze(0)
+        self.state = torch.tensor(obs, device=self.device, dtype=torch.float).unsqueeze(0)
         return
 
     def takeAction(self, action):
@@ -180,9 +180,9 @@ class DQNAgent:
         :param obs: observation from env
         :return: tensor of next state
         """
-        return torch.tensor(obs, device=self.device).unsqueeze(0)
+        return torch.tensor(obs, device=self.device, dtype=torch.float).unsqueeze(0)
 
-    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100):
+    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         """
         train the network for on episode
         :param num_episodes: number of total episodes
@@ -194,6 +194,8 @@ class DQNAgent:
         self.resetEnv()
         r_total = 0
         for step in range(max_episode_steps):
+            if render:
+                self.env.render()
             state = self.state
             action, q = self.selectAction(state, require_q=True)
             obs_, r, done, info = self.takeAction(action.item())

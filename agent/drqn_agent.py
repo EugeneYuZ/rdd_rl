@@ -62,17 +62,17 @@ class DRQNAgent(DQNAgent):
             self.hidden_size = self.policy_net.hidden_size
         self.hidden = None
 
-    def getInitialHidden(self):
+    def getInitialHidden(self, size=1):
         """
         get initial hidden state of all 0
         :return:
         """
-        return (torch.zeros(1, self.hidden_size, device=self.device, requires_grad=False),
-                torch.zeros(1, self.hidden_size, device=self.device, requires_grad=False))
+        return (torch.zeros(1, size, self.hidden_size, device=self.device, requires_grad=False),
+                torch.zeros(1, size, self.hidden_size, device=self.device, requires_grad=False))
 
     def forwardPolicyNet(self, state):
         with torch.no_grad():
-            q_values, self.hidden = self.policy_net((state, self.hidden))
+            q_values, self.hidden = self.policy_net(state, self.hidden)
             return q_values
 
     @staticmethod
@@ -84,30 +84,89 @@ class DRQNAgent(DQNAgent):
 
         return state, action, reward, next_state
 
+    # def optimizeModel(self):
+    #     if len(self.memory) < self.batch_size + 1:
+    #         return
+    #     memory = self.memory.sample(self.batch_size)
+    #
+    #     loss = 0
+    #
+    #     for transitions in memory:
+    #         hidden = self.getInitialHidden()
+    #         for transition in transitions:
+    #             state, action, reward, next_state = self.unzipTransition(transition)
+    #             q_values, hidden = self.policy_net((state, hidden))
+    #             q_value = q_values.gather(1, action)
+    #             if next_state is not None:
+    #                 hidden_clone = (hidden[0].clone(), hidden[1].clone())
+    #                 next_q_values, _ = self.target_net((next_state, hidden_clone))
+    #                 next_q_value = next_q_values.max(1)[0].detach()
+    #             else:
+    #                 next_q_value = torch.zeros(1, device=self.device)
+    #             expected_q_value = (next_q_value * self.gamma) + reward
+    #
+    #             advantage = expected_q_value - q_value
+    #
+    #             loss = loss + 0.5 * advantage.pow(2)
+    #
+    #     self.optimizer.zero_grad()
+    #     loss.backward()
+    #     for param in self.policy_net.parameters():
+    #         param.grad.data.clamp_(-1, 1)
+    #     self.optimizer.step()
+
+    @staticmethod
+    def unzipMemory(memory):
+        state_batch = []
+        action_batch = []
+        next_state_batch = []
+        reward_batch = []
+        padding = torch.zeros_like(memory[0][0].state)
+
+        for episode in memory:
+            episode_transition = Transition(*zip(*episode))
+            state_batch.append(torch.cat(episode_transition.state))
+            action_batch.append(torch.cat(episode_transition.action))
+            # non_final_next_states = torch.cat([s for s in episode_transition.next_state
+            #                                    if s is not None])
+            non_final_next_states = torch.cat([s if s is not None else padding
+                                               for s in episode_transition.next_state])
+            next_state_batch.append(non_final_next_states)
+            reward_batch.append(torch.cat(episode_transition.reward))
+
+        return state_batch, action_batch, next_state_batch, reward_batch
+
     def optimizeModel(self):
         if len(self.memory) < self.batch_size + 1:
             return
-        memory = self.memory.sample(self.batch_size)
+        mini_memory = self.memory.sample(self.batch_size)
+        mini_memory.sort(key=lambda x: len(x), reverse=True)
 
-        loss = 0
+        state_batch, action_batch, next_state_batch, reward_batch = self.unzipMemory(mini_memory)
+        # episode_size = [lambda x: x.shape[1], state_batch]
+        episode_size = map(lambda x: x.shape[0], state_batch)
+        padded_state = nn.utils.rnn.pad_sequence(state_batch, True)
+        padded_next_state = nn.utils.rnn.pad_sequence(next_state_batch, True)
+        padded_action = nn.utils.rnn.pad_sequence(action_batch, True)
 
-        for transitions in memory:
-            hidden = self.getInitialHidden()
-            for transition in transitions:
-                state, action, reward, next_state = self.unzipTransition(transition)
-                q_values, hidden = self.policy_net((state, hidden))
-                q_value = q_values.gather(1, action)
-                if next_state is not None:
-                    hidden_clone = (hidden[0].clone(), hidden[1].clone())
-                    next_q_values, _ = self.target_net((next_state, hidden_clone))
-                    next_q_value = next_q_values.max(1)[0].detach()
-                else:
-                    next_q_value = torch.zeros(1, device=self.device)
-                expected_q_value = (next_q_value * self.gamma) + reward
+        padded_reward = nn.utils.rnn.pad_sequence(reward_batch, True)
+        init_hidden = self.getInitialHidden(len(episode_size))
 
-                advantage = expected_q_value - q_value
+        state_action_values, _ = self.policy_net.forwardSequence(padded_state, init_hidden, episode_size)
+        state_action_values = state_action_values.gather(2, padded_action)
+        target_state_action_values, _ = self.target_net.forwardSequence(padded_next_state, init_hidden, episode_size)
+        target_state_action_values = target_state_action_values.max(2)[0].detach()
 
-                loss = loss + 0.5 * advantage.pow(2)
+        expected_state_action_values = padded_reward
+        mask = nn.utils.rnn.pad_sequence(reward_batch, True, -100) < -10
+        for i in range(len(episode_size)):
+            mask[i, episode_size[i] - 1] = 1
+
+        target_state_action_values[mask] = 0
+
+        expected_state_action_values += self.gamma * target_state_action_values
+
+        loss = F.smooth_l1_loss(state_action_values.squeeze(2), expected_state_action_values)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -115,10 +174,10 @@ class DRQNAgent(DQNAgent):
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-    def train(self, num_episodes, max_episode_steps=100, save_freq=100):
+    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         while self.episodes_done < num_episodes:
             self.hidden = self.getInitialHidden()
-            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq)
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
         self.save_checkpoint()
 
     def save_checkpoint(self):
