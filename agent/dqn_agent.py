@@ -228,7 +228,7 @@ class DQNAgent:
         if self.episodes_done % self.target_update == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    def train(self, num_episodes, max_episode_steps=100, save_freq=100):
+    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         """
         train the network for given number of episodes
         :param num_episodes:
@@ -237,7 +237,7 @@ class DQNAgent:
         :return:
         """
         while self.episodes_done < num_episodes:
-            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq)
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
         self.save_checkpoint()
 
     def save_checkpoint(self):

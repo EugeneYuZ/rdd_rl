@@ -57,18 +57,15 @@ class DRQNAgent(DQNAgent):
         DQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                           target_update_frequency, saving_dir)
         self.memory = EpisodicReplayMemory(memory_size)
-        self.hidden_size = 0
-        if self.policy_net:
-            self.hidden_size = self.policy_net.hidden_size
         self.hidden = None
 
-    def getInitialHidden(self, size=1):
-        """
-        get initial hidden state of all 0
-        :return:
-        """
-        return (torch.zeros(1, size, self.hidden_size, device=self.device, requires_grad=False),
-                torch.zeros(1, size, self.hidden_size, device=self.device, requires_grad=False))
+    # def getInitialHidden(self, size=1):
+    #     """
+    #     get initial hidden state of all 0
+    #     :return:
+    #     """
+    #     return (torch.zeros(1, size, self.hidden_size, device=self.device, requires_grad=False),
+    #             torch.zeros(1, size, self.hidden_size, device=self.device, requires_grad=False))
 
     def forwardPolicyNet(self, state):
         with torch.no_grad():
@@ -174,11 +171,15 @@ class DRQNAgent(DQNAgent):
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
-        while self.episodes_done < num_episodes:
-            self.hidden = self.getInitialHidden()
-            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
-        self.save_checkpoint()
+    # def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
+    #     while self.episodes_done < num_episodes:
+    #         self.hidden = self.getInitialHidden()
+    #         self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
+    #     self.save_checkpoint()
+
+    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
+        self.hidden = None
+        DQNAgent.trainOneEpisode(self, num_episodes, max_episode_steps, save_freq, render)
 
     def save_checkpoint(self):
         time_stamp = time.strftime('%Y%m%d%H%M%S', time.gmtime())
@@ -189,7 +190,6 @@ class DRQNAgent(DQNAgent):
             'policy_state_dict': self.policy_net.state_dict(),
             'target_state_dict': self.target_net.state_dict(),
             'hidden': self.hidden,
-            'hidden_size': self.hidden_size,
             'memory': self.memory,
             'optimizer_state_dict': self.optimizer.state_dict(),
             'episode_rewards': self.episode_rewards,
@@ -204,7 +204,6 @@ class DRQNAgent(DQNAgent):
         self.episodes_done = checkpoint['episode']
         self.steps_done = checkpoint['steps']
         self.hidden = checkpoint['hidden']
-        self.hidden_size = checkpoint['hidden_size']
         self.memory = checkpoint['memory']
         self.episode_rewards = checkpoint['episode_rewards']
         self.episode_lengths = checkpoint['episode_lengths']
