@@ -149,21 +149,23 @@ class DRQNAgent(DQNAgent):
         padded_reward = nn.utils.rnn.pad_sequence(reward_batch, True)
 
         state_action_values, _ = self.policy_net(padded_state, episode_size=episode_size)
-        state_action_values = state_action_values.gather(2, padded_action)
+        state_action_values = state_action_values.gather(2, padded_action).squeeze(2)
         target_state_action_values, _ = self.target_net(padded_next_state, episode_size=episode_size)
         target_state_action_values = target_state_action_values.max(2)[0].detach()
 
         expected_state_action_values = padded_reward
 
-        mask = torch.zeros_like(target_state_action_values, dtype=torch.uint8)
+        final_mask = torch.zeros_like(target_state_action_values, dtype=torch.uint8)
         for i in range(len(episode_size)):
-            mask[i, episode_size[i]-1:] = 1
-
-        target_state_action_values[mask] = 0
-
+            final_mask[i, episode_size[i] - 1] = 1
+        target_state_action_values[final_mask] = 0
         expected_state_action_values += self.gamma * target_state_action_values
 
-        loss = F.mse_loss(state_action_values.squeeze(2), expected_state_action_values)
+        non_pad_mask = torch.ones_like(target_state_action_values, dtype=torch.uint8)
+        for i in range(len(episode_size)):
+            non_pad_mask[i, episode_size[i]:] = 0
+
+        loss = F.mse_loss(state_action_values[non_pad_mask], expected_state_action_values[non_pad_mask])
 
         self.optimizer.zero_grad()
         loss.backward()
