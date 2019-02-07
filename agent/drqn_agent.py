@@ -72,7 +72,9 @@ class DRQNAgent(DQNAgent):
 
     def forwardPolicyNet(self, state):
         with torch.no_grad():
+            state = state.unsqueeze(0)
             q_values, self.hidden = self.policy_net(state, self.hidden)
+            q_values = q_values.squeeze(0)
             return q_values
 
     @staticmethod
@@ -143,30 +145,28 @@ class DRQNAgent(DQNAgent):
         mini_memory.sort(key=lambda x: len(x), reverse=True)
 
         state_batch, action_batch, next_state_batch, reward_batch = self.unzipMemory(mini_memory)
-        # episode_size = [lambda x: x.shape[1], state_batch]
         episode_size = map(lambda x: x.shape[0], state_batch)
         padded_state = nn.utils.rnn.pad_sequence(state_batch, True)
         padded_next_state = nn.utils.rnn.pad_sequence(next_state_batch, True)
         padded_action = nn.utils.rnn.pad_sequence(action_batch, True)
-
         padded_reward = nn.utils.rnn.pad_sequence(reward_batch, True)
-        init_hidden = self.getInitialHidden(len(episode_size))
 
-        state_action_values, _ = self.policy_net.forwardSequence(padded_state, init_hidden, episode_size)
+        state_action_values, _ = self.policy_net(padded_state, episode_size=episode_size)
         state_action_values = state_action_values.gather(2, padded_action)
-        target_state_action_values, _ = self.target_net.forwardSequence(padded_next_state, init_hidden, episode_size)
+        target_state_action_values, _ = self.target_net(padded_next_state, episode_size=episode_size)
         target_state_action_values = target_state_action_values.max(2)[0].detach()
 
         expected_state_action_values = padded_reward
-        mask = nn.utils.rnn.pad_sequence(reward_batch, True, -100) < -10
+
+        mask = torch.zeros_like(target_state_action_values, dtype=torch.uint8)
         for i in range(len(episode_size)):
-            mask[i, episode_size[i] - 1] = 1
+            mask[i, episode_size[i]-1:] = 1
 
         target_state_action_values[mask] = 0
 
         expected_state_action_values += self.gamma * target_state_action_values
 
-        loss = F.smooth_l1_loss(state_action_values.squeeze(2), expected_state_action_values)
+        loss = F.mse_loss(state_action_values.squeeze(2), expected_state_action_values)
 
         self.optimizer.zero_grad()
         loss.backward()
