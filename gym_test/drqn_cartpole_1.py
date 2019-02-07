@@ -36,22 +36,26 @@ class DRQN(torch.nn.Module):
         return x, hidden
 
 
-if __name__ == '__main__':
+def train():
     env = gym.make("CartPole-v1")
     agent = CartPoleDRQNAgent(DRQN, model=DRQN(), env=env,
-                      exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1),
-                      batch_size=32, target_update_frequency=20)
+                          exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1),
+                          batch_size=32, target_update_frequency=20)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/data/drqn_cartpole_1'
     agent.train(100000, 200, 100, False)
 
-    # env = None
-    # agent = DRQNAgent(DRQN, model=DRQN(), env=env,
-    #                   exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1),
-    #                   batch_size=4, target_update_frequency=20)
-    # agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/data/drqn_cartpole'
-    # agent.load_checkpoint('20190207182009')
-    # plotLearningCurve(agent.episode_rewards, window=20)
-    # plt.show()
-    # plotLearningCurve(agent.episode_lengths, label='length', color='r')
-    # plt.show()
 
+def plot(checkpoint):
+    env = None
+    agent = CartPoleDRQNAgent(DRQN, model=DRQN(), env=env,
+                              exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1),
+                              batch_size=32, target_update_frequency=20)
+    agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/data/drqn_cartpole_1'
+    agent.load_checkpoint(checkpoint)
+    plotLearningCurve(agent.episode_rewards, window=20)
+    plt.show()
+
+
+if __name__ == '__main__':
+    # train()
+    plot('20190207214619')
