@@ -199,10 +199,16 @@ class DRQNAgent(DQNAgent):
         }
         torch.save(state, filename)
 
-    def load_checkpoint(self, time_stamp):
+    def load_checkpoint(self, time_stamp, data_only=False):
         filename = os.path.join(self.saving_dir, 'checkpoint' + time_stamp + '.pth.tar')
         print 'loading checkpoint: ', filename
         checkpoint = torch.load(filename)
+
+        if data_only:
+            self.episode_rewards = checkpoint['episode_rewards']
+            self.episode_lengths = checkpoint['episode_lengths']
+            return
+
         self.episodes_done = checkpoint['episode']
         self.steps_done = checkpoint['steps']
         self.hidden = checkpoint['hidden']

@@ -51,11 +51,11 @@ def plot(checkpoint):
                               exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1),
                               batch_size=32, target_update_frequency=20)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/data/drqn_cartpole_1'
-    agent.load_checkpoint(checkpoint)
-    plotLearningCurve(agent.episode_rewards, window=20)
+    agent.load_checkpoint(checkpoint, data_only=True)
+    plotLearningCurve(agent.episode_rewards, window=100)
     plt.show()
 
 
 if __name__ == '__main__':
     # train()
-    plot('20190207214619')
+    plot('20190207232447')
