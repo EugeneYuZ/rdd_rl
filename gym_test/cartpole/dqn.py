@@ -54,7 +54,7 @@ def train():
 def plot(checkpoint):
     agent = CartPoleDRQNAgent(DQN)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/data/dqn_cartpole'
-    agent.load_checkpoint(checkpoint)
+    agent.loadCheckpoint(checkpoint)
     plotLearningCurve(agent.episode_rewards, window=100)
     plt.show()
 
