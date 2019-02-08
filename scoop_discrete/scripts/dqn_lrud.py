@@ -82,7 +82,7 @@ class ConvDQNAgent(DQNAgent):
 if __name__ == '__main__':
     agent = ConvDQNAgent(ConvDQN, model=ConvDQN(), env=ScoopEnv(port=19997),
                          exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.1))
-    agent.load_checkpoint('20190204141926')
+    agent.loadCheckpoint('20190204141926')
     agent.train(100000, max_episode_steps=200)
 
     # agent = ConvDQNAgent(ConvDQN, model=ConvDQN(), env=None,

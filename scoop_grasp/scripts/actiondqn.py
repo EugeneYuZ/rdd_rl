@@ -73,5 +73,5 @@ class ConvActionDQNAgent(DQNAgent):
 if __name__ == '__main__':
     agent = ConvActionDQNAgent(ConvActionDQN, model=ConvActionDQN(), env=ScoopEnv(port=19997),
                                exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.1))
-    agent.load_checkpoint('20190123173739')
+    agent.loadCheckpoint('20190123173739')
     agent.train(100000, max_episode_steps=1000, save_freq=50)

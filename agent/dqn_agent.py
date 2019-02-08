@@ -222,7 +222,7 @@ class DQNAgent:
                 self.episode_rewards.append(r_total)
                 self.episode_lengths.append(step)
                 if self.episodes_done % save_freq == 0:
-                    self.save_checkpoint()
+                    self.saveCheckpoint()
                 break
             self.state = next_state
         if self.episodes_done % self.target_update == 0:
@@ -238,39 +238,53 @@ class DQNAgent:
         """
         while self.episodes_done < num_episodes:
             self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
-        self.save_checkpoint()
+        self.saveCheckpoint()
 
-    def save_checkpoint(self):
-        """
-        save checkpoint in self.saving_dir
-        :return: None
-        """
-        time_stamp = time.strftime('%Y%m%d%H%M%S', time.gmtime())
-        filename = os.path.join(self.saving_dir, 'checkpoint' + time_stamp + '.pth.tar')
+    def getSavingState(self):
         state = {
             'episode': self.episodes_done,
             'steps': self.steps_done,
             'policy_state_dict': self.policy_net.state_dict(),
             'target_state_dict': self.target_net.state_dict(),
-            'memory': self.memory,
             'optimizer_state_dict': self.optimizer.state_dict(),
             'episode_rewards': self.episode_rewards,
             'episode_lengths': self.episode_lengths
         }
-        torch.save(state, filename)
+        return state
 
-    def load_checkpoint(self, time_stamp):
+    def saveCheckpoint(self):
+        """
+        save checkpoint in self.saving_dir
+        :return: None
+        """
+        time_stamp = time.strftime('%Y%m%d%H%M%S', time.gmtime())
+        state_filename = os.path.join(self.saving_dir, 'checkpoint.' + time_stamp + '.pth.tar')
+        mem_filename = os.path.join(self.saving_dir, 'memory.' + time_stamp + '.pth.tar')
+        state = self.getSavingState()
+        memory = {
+            'memory': self.memory
+        }
+        torch.save(state, state_filename)
+        torch.save(memory, mem_filename)
+
+    def loadCheckpoint(self, time_stamp, data_only=False):
         """
         load checkpoint at input time stamp
         :param time_stamp: time stamp for the checkpoint
         :return: None
         """
-        filename = os.path.join(self.saving_dir, 'checkpoint' + time_stamp + '.pth.tar')
-        print 'loading checkpoint: ', filename
-        checkpoint = torch.load(filename)
+        state_filename = os.path.join(self.saving_dir, 'checkpoint.' + time_stamp + '.pth.tar')
+        mem_filename = os.path.join(self.saving_dir, 'memory.' + time_stamp + '.pth.tar')
+
+        print 'loading checkpoint: ', time_stamp
+        checkpoint = torch.load(state_filename)
+        if data_only:
+            self.episode_rewards = checkpoint['episode_rewards']
+            self.episode_lengths = checkpoint['episode_lengths']
+            return
+
         self.episodes_done = checkpoint['episode']
         self.steps_done = checkpoint['steps']
-        self.memory = checkpoint['memory']
         self.episode_rewards = checkpoint['episode_rewards']
         self.episode_lengths = checkpoint['episode_lengths']
 
@@ -286,3 +300,6 @@ class DQNAgent:
 
         self.optimizer = optim.Adam(self.policy_net.parameters())
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+        memory = torch.load(mem_filename)
+        self.memory = memory['memory']

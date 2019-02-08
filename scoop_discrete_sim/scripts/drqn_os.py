@@ -28,8 +28,7 @@ class DRQN(torch.nn.Module):
         x = x.view(-1, 64)
         x = torch.cat((x, action), 1)
         hx, cx = self.lstm(x, (hx, cx))
-        x = F.relu(hx)
-        x = self.fc1(x)
+        x = self.fc1(hx)
         return x, (hx, cx)
 
 

@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # agent.train(100000, max_episode_steps=200)
 
     agent = ConvDQNAgent(ConvDQN)
-    agent.load_checkpoint('20190123164517')
+    agent.loadCheckpoint('20190123164517')
     plotLearningCurve(agent.episode_rewards)
     plt.show()
     plotLearningCurve(agent.episode_lengths, label='length', color='r')
