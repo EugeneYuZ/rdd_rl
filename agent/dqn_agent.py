@@ -290,12 +290,10 @@ class DQNAgent:
         self.episode_rewards = checkpoint['episode_rewards']
         self.episode_lengths = checkpoint['episode_lengths']
 
-        self.policy_net = self.model_class()
         self.policy_net.load_state_dict(checkpoint['policy_state_dict'])
         self.policy_net = self.policy_net.to(self.device)
         self.policy_net.train()
 
-        self.target_net = self.model_class()
         self.target_net.load_state_dict(checkpoint['policy_state_dict'])
         self.target_net = self.target_net.to(self.device)
         self.target_net.eval()
