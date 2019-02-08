@@ -41,7 +41,7 @@ class EpisodicReplayMemory(object):
 
 class DRQNAgent(DQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=10, saving_dir=None):
+                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=100):
         """
         base class for lstm dqn agent
         :param model_class: sub class of torch.nn.Module. class reference of the model
@@ -51,13 +51,14 @@ class DRQNAgent(DQNAgent):
         :param gamma: gamma
         :param memory_size: size of the memory
         :param batch_size: size of the mini batch for one step update
-        :param target_update_frequency: the frequency for updating target net (in episode)
+        :param target_update_frequency: the frequency for updating target net (in steps)
         :param saving_dir: the directory for saving checkpoint
         """
         DQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                           target_update_frequency, saving_dir)
         self.memory = EpisodicReplayMemory(memory_size)
         self.hidden = None
+        self.min_mem = min_mem
 
     # def getInitialHidden(self, size=1):
     #     """
@@ -136,7 +137,7 @@ class DRQNAgent(DQNAgent):
         return state_batch, action_batch, next_state_batch, reward_batch
 
     def optimizeModel(self):
-        if len(self.memory) < self.batch_size + 1:
+        if len(self.memory) < self.min_mem:
             return
         mini_memory = self.memory.sample(self.batch_size)
         mini_memory.sort(key=lambda x: len(x), reverse=True)
@@ -179,7 +180,7 @@ class DRQNAgent(DQNAgent):
     #         self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
     #     self.save_checkpoint()
 
-    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
+    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
         self.hidden = None
-        DQNAgent.trainOneEpisode(self, num_episodes, max_episode_steps, save_freq, render)
+        DQNAgent.trainOneEpisode(self, num_episodes, max_episode_steps, save_freq, render, print_step)
 
