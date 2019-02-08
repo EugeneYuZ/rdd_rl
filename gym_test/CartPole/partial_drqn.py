@@ -10,7 +10,7 @@ from util.utils import LinearSchedule
 from util.plot import *
 # from scoop_discrete.scripts.drqn_lrud import ConvDRQNAgent
 # from agent.drqn_agent import DRQNAgent
-from cartpole_partial_drqn_agent import CartPoleDRQNAgent
+from partial_drqn_agent import CartPoleDRQNAgent
 
 import gym
 
@@ -58,4 +58,5 @@ def plot(checkpoint):
 
 
 if __name__ == '__main__':
-    train()
+    # train()
+    plot('20190208144605')
