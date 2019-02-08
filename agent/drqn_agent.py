@@ -22,12 +22,19 @@ class EpisodicReplayMemory(object):
         self.position = 0
 
     def push(self, *args):
+        state, action, next_state, reward = args
+        state = state.to('cpu')
+        action = action.to('cpu')
+        if next_state is not None:
+            next_state = next_state.to('cpu')
+        reward = reward.to('cpu')
+
         if self.memory[-1] and self.memory[-1][-1].next_state is None:
             self.memory.append([])
             if len(self.memory) > self.capacity:
                 self.memory = self.memory[1:]
 
-        self.memory[-1].append(Transition(*args))
+        self.memory[-1].append(Transition(state, action, next_state, reward))
 
     def sample(self, batch_size):
         if self.memory[-1] and self.memory[-1][-1].next_state is None:
@@ -144,10 +151,10 @@ class DRQNAgent(DQNAgent):
 
         state_batch, action_batch, next_state_batch, reward_batch = self.unzipMemory(mini_memory)
         episode_size = map(lambda x: x.shape[0], state_batch)
-        padded_state = nn.utils.rnn.pad_sequence(state_batch, True)
-        padded_next_state = nn.utils.rnn.pad_sequence(next_state_batch, True)
-        padded_action = nn.utils.rnn.pad_sequence(action_batch, True)
-        padded_reward = nn.utils.rnn.pad_sequence(reward_batch, True)
+        padded_state = nn.utils.rnn.pad_sequence(state_batch, True).to(self.device)
+        padded_next_state = nn.utils.rnn.pad_sequence(next_state_batch, True).to(self.device)
+        padded_action = nn.utils.rnn.pad_sequence(action_batch, True).to(self.device)
+        padded_reward = nn.utils.rnn.pad_sequence(reward_batch, True).to(self.device)
 
         state_action_values, _ = self.policy_net(padded_state, episode_size=episode_size)
         state_action_values = state_action_values.gather(2, padded_action).squeeze(2)
