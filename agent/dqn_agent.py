@@ -269,7 +269,7 @@ class DQNAgent:
         torch.save(state, state_filename)
         torch.save(memory, mem_filename)
 
-    def loadCheckpoint(self, time_stamp, data_only=False):
+    def loadCheckpoint(self, time_stamp, data_only=False, load_memory=True):
         """
         load checkpoint at input time stamp
         :param time_stamp: time stamp for the checkpoint
@@ -301,5 +301,6 @@ class DQNAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters())
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-        memory = torch.load(mem_filename)
-        self.memory = memory['memory']
+        if load_memory:
+            memory = torch.load(mem_filename)
+            self.memory = memory['memory']
