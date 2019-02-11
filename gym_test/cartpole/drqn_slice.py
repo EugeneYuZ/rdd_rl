@@ -8,7 +8,6 @@ sys.path.append('../..')
 
 from util.utils import LinearSchedule
 from util.plot import *
-# from scoop_discrete.scripts.drqn_lrud import ConvDRQNAgent
 from agent.drqn_slice_agent import DRQNSliceAgent
 
 import gym
@@ -32,13 +31,39 @@ class DRQN(torch.nn.Module):
         return x, hidden
 
 
+class CartPoleDRQNSliceAgent(DRQNSliceAgent):
+    def __init__(self, *args, **kwargs):
+        DRQNSliceAgent.__init__(self, *args, **kwargs)
+
+    def takeAction(self, action):
+        """
+        take given action and return response
+        :param action: int, action to take
+        :return: obs_, r, done, info
+        """
+        obs, r, done, info = self.env.step(action)
+        if done:
+            r = -1
+        return obs, r, done, info
+
+    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
+        while self.episodes_done < num_episodes:
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render, print_step)
+            if len(self.episode_rewards) > 100:
+                avg = np.average(self.episode_rewards[-100:])
+                print 'avg reward in 100 episodes: ', avg
+                if avg > 195:
+                    print 'solved'
+                    return
+
+
 def train():
     env = gym.make("CartPole-v1")
-    agent = DRQNSliceAgent(DRQN, model=DRQN(), env=env,
+    agent = CartPoleDRQNSliceAgent(DRQN, model=DRQN(), env=env,
                            exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.02),
-                           batch_size=32, memory_size=10000, min_mem=100, sequence_len=64)
+                           batch_size=2, memory_size=1000, min_mem=100, sequence_len=4)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/cartpole/data/drqn_slice'
-    agent.train(10000, 300, 100, False, print_step=False)
+    agent.train(10000, 10000, 100, False, print_step=False)
 
 
 def plot(checkpoint):
@@ -52,4 +77,4 @@ def plot(checkpoint):
 
 if __name__ == '__main__':
     train()
-    # plot('20190208212151')
+    # plot('20190210114727')
