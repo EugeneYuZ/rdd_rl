@@ -6,6 +6,7 @@ from abc import abstractmethod
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -94,8 +95,7 @@ class DQNAgent:
         """
         e = self.exploration.value(self.steps_done)
         self.steps_done += 1
-        with torch.no_grad():
-            q_values = self.forwardPolicyNet(state)
+        q_values = self.forwardPolicyNet(state)
         if random.random() > e:
             action = q_values.max(1)[1].view(1, 1)
         else:
@@ -159,7 +159,7 @@ class DQNAgent:
         loss.backward()
         for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1, 1)
-            self.optimizer.step()
+        self.optimizer.step()
 
     def resetEnv(self):
         """
