@@ -23,9 +23,16 @@ class ReplayMemory(object):
         self.position = 0
 
     def push(self, *args):
+        state, action, next_state, reward = args
+        state = state.to('cpu')
+        action = action.to('cpu')
+        if next_state is not None:
+            next_state = next_state.to('cpu')
+        reward = reward.to('cpu')
+
         if len(self.memory) < self.capacity:
             self.memory.append(None)
-        self.memory[self.position] = Transition(*args)
+        self.memory[self.position] = Transition(state, action, next_state, reward)
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
@@ -140,11 +147,11 @@ class DQNAgent:
         transitions = self.memory.sample(self.batch_size)
         mini_batch = Transition(*zip(*transitions))
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                                mini_batch.next_state)), device=self.device, dtype=torch.uint8)
-        non_final_next_states = self.getNonFinalNextStateBatch(mini_batch)
-        state_batch = self.getStateBatch(mini_batch)
-        action_batch = torch.cat(mini_batch.action)
-        reward_batch = torch.cat(mini_batch.reward)
+                                                mini_batch.next_state)), device=self.device, dtype=torch.uint8).to(self.device)
+        non_final_next_states = self.getNonFinalNextStateBatch(mini_batch).to(self.device)
+        state_batch = self.getStateBatch(mini_batch).to(self.device)
+        action_batch = torch.cat(mini_batch.action).to(self.device)
+        reward_batch = torch.cat(mini_batch.reward).to(self.device)
 
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
