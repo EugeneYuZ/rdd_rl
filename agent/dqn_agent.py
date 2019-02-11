@@ -70,7 +70,7 @@ class DQNAgent:
             self.policy_net = self.policy_net.to(self.device)
             self.target_net = self.target_net.to(self.device)
             self.target_net.eval()
-            self.optimizer = optim.Adam(self.policy_net.parameters())
+            self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.memory = ReplayMemory(memory_size)
         self.batch_size = batch_size
         self.gamma = gamma
@@ -160,12 +160,10 @@ class DQNAgent:
 
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
     def resetEnv(self):
