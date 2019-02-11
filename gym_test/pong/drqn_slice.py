@@ -46,16 +46,32 @@ class DRQN(nn.Module):
         return x, hidden
 
 
+class DRQNSliceStackAgent(DRQNSliceAgent):
+    def __init__(self, *args, **kwargs):
+        DRQNSliceAgent.__init__(self, *args, **kwargs)
+
+    def resetEnv(self):
+        obs = np.array(self.env.reset())
+        self.state = torch.tensor(obs, device=self.device, dtype=torch.float).unsqueeze(0)
+        return
+
+    def getNextState(self, obs):
+        return torch.tensor(np.array(obs), device=self.device, dtype=torch.float).unsqueeze(0)
+
+
 if __name__ == '__main__':
     env = gym.make('PongNoFrameskip-v4')
     env = wrap_dqn(env)
     # env = wrap_drqn(env)
 
-    agent = DRQNSliceAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
+    # agent = DRQNSliceAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
+    #                        exploration=LinearSchedule(100000, 0.02),
+    #                        batch_size=32, target_update_frequency=1000, memory_size=500, sequence_len=10)
+    agent = DRQNSliceStackAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
                            exploration=LinearSchedule(100000, 0.02),
-                           batch_size=32, target_update_frequency=1000, memory_size=500, sequence_len=10)
+                           batch_size=32, target_update_frequency=1000, memory_size=100, sequence_len=10)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/drqn_slice'
-    # agent.loadCheckpoint('20190210193936')
+    agent.loadCheckpoint('20190211181356')
     agent.train(10000, 10000, print_step=False, save_freq=50)
     # plotLearningCurve(agent.episode_rewards, window=5)
     # plt.show()
