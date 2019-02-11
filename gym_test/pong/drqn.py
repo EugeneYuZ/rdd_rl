@@ -31,20 +31,16 @@ class DRQN(nn.Module):
 
         return int(np.prod(o.size()))
 
-    def forward(self, x, hidden=None, episode_size=None):
-        if episode_size is None:
-            episode_size = [1]
+    def forward(self, x, hidden=None):
         x = x.float() / 256
         shape = x.shape
         x = x.view(shape[0]*shape[1], shape[2], shape[3], shape[4])
         conv_out = self.conv(x)
         x = conv_out.view(shape[0], shape[1], -1)
-        x = nn.utils.rnn.pack_padded_sequence(x, episode_size, True)
         if hidden is None:
             x, hidden = self.lstm(x)
         else:
             x, hidden = self.lstm(x, hidden)
-        x, _ = nn.utils.rnn.pad_packed_sequence(x, True)
         x = self.fc(x)
         return x, hidden
 
@@ -55,7 +51,6 @@ if __name__ == '__main__':
 
     agent = DRQNAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
                       exploration=LinearSchedule(100000, 0.02),
-                      batch_size=1, target_update_frequency=1000, memory_size=200, min_mem=10)
+                      batch_size=1, target_update_frequency=1000, memory_size=100000, min_mem=10)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/drqn'
-    agent.loadCheckpoint('20190208202148')
-    agent.train(10000, 10000, print_step=True, save_freq=50)
+    agent.train(10000, 10000, print_step=False, save_freq=50)
