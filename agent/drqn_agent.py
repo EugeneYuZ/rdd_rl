@@ -48,7 +48,7 @@ class EpisodicReplayMemory(object):
 
 class DRQNAgent(DQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=100):
+                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=None):
         """
         base class for lstm dqn agent
         :param model_class: sub class of torch.nn.Module. class reference of the model
@@ -65,8 +65,9 @@ class DRQNAgent(DQNAgent):
                           target_update_frequency, saving_dir)
         self.memory = EpisodicReplayMemory(memory_size)
         self.hidden = None
+        if min_mem is None or min_mem < batch_size+1:
+            min_mem = batch_size + 1
         self.min_mem = min_mem
-
     # def getInitialHidden(self, size=1):
     #     """
     #     get initial hidden state of all 0

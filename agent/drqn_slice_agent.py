@@ -48,7 +48,7 @@ class SliceReplayMemory:
 
     def sample(self, batch_size):
         batch_state, batch_next_state, batch_action, batch_reward, batch_final_mask, batch_pad_mask = [], [], [], [], [], []
-        batch_indexes = np.random.choice(np.arange(len(self.memory)), batch_size)
+        batch_indexes = np.random.choice(np.arange(len(self.memory)), batch_size, replace=False)
         for batch_idx in batch_indexes:
             episode = self.memory[batch_idx]
             start = random.randint(0, len(episode) - self.sequence_len)
