@@ -245,6 +245,7 @@ class DQNAgent:
         """
         while self.episodes_done < num_episodes:
             self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render, print_step)
+            print '--- mem length: {} ---'.format(len(self.memory))
         self.saveCheckpoint()
 
     def getSavingState(self):

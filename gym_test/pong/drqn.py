@@ -51,6 +51,6 @@ if __name__ == '__main__':
 
     agent = DRQNAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
                       exploration=LinearSchedule(100000, 0.02),
-                      batch_size=1, target_update_frequency=1000, memory_size=100000, min_mem=10)
+                      batch_size=1, target_update_frequency=1000, memory_size=100000, min_mem=10000)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/drqn'
     agent.train(10000, 10000, print_step=False, save_freq=50)

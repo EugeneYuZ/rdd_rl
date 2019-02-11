@@ -21,7 +21,6 @@ class SliceReplayMemory:
         self.local_memory = []
         self.capacity = capacity
         self.sequence_len = sequence_len
-        self.current_len = 0
 
     def push(self, *args):
         state, action, next_state, reward = args
@@ -46,8 +45,7 @@ class SliceReplayMemory:
                     1
                 ))
             self.memory.append(self.local_memory)
-            self.current_len += len(self.local_memory)
-            if self.current_len > self.capacity:
+            while self.__len__() > self.capacity:
                 self.memory.popleft()
             self.local_memory = []
 
@@ -70,13 +68,13 @@ class SliceReplayMemory:
         return Transition(batch_state, batch_action, batch_next_state, batch_reward, batch_final_mask, batch_pad_mask)
 
     def __len__(self):
-        return len(self.memory)
+        return sum(map(len, self.memory))
 
 
 class DRQNSliceAgent(DRQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
                  gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None,
-                 min_mem=None, sequence_len=32):
+                 min_mem=10000, sequence_len=32):
         DRQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                            target_update_frequency, saving_dir, min_mem)
         self.memory = SliceReplayMemory(memory_size, sequence_len)

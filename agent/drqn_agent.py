@@ -20,7 +20,6 @@ class EpisodicReplayMemory(object):
         self.memory = deque()
         self.local_memory = []
         self.capacity = capacity
-        self.current_len = 0
 
     def push(self, *args):
         state, action, next_state, reward = args
@@ -34,8 +33,7 @@ class EpisodicReplayMemory(object):
 
         if next_state is None:
             self.memory.append(self.local_memory)
-            self.current_len += len(self.local_memory)
-            if self.current_len > self.capacity:
+            while self.__len__() > self.capacity:
                 self.memory.popleft()
             self.local_memory = []
 
@@ -43,12 +41,12 @@ class EpisodicReplayMemory(object):
         return random.sample(self.memory, batch_size)
 
     def __len__(self):
-        return len(self.memory)
+        return sum(map(len, self.memory))
 
 
 class DRQNAgent(DQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=None):
+                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=10000):
         """
         base class for lstm dqn agent
         :param model_class: sub class of torch.nn.Module. class reference of the model
@@ -65,8 +63,6 @@ class DRQNAgent(DQNAgent):
                           target_update_frequency, saving_dir)
         self.memory = EpisodicReplayMemory(memory_size)
         self.hidden = None
-        if min_mem is None or min_mem < batch_size+1:
-            min_mem = batch_size + 1
         self.min_mem = min_mem
 
     def forwardPolicyNet(self, state):
