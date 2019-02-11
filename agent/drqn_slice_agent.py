@@ -17,10 +17,11 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'
 
 class SliceReplayMemory:
     def __init__(self, capacity, sequence_len):
-        self.memory = deque(maxlen=capacity)
+        self.memory = deque()
         self.local_memory = []
         self.capacity = capacity
         self.sequence_len = sequence_len
+        self.current_len = 0
 
     def push(self, *args):
         state, action, next_state, reward = args
@@ -45,6 +46,9 @@ class SliceReplayMemory:
                     1
                 ))
             self.memory.append(self.local_memory)
+            self.current_len += len(self.local_memory)
+            if self.current_len > self.capacity:
+                self.memory.popleft()
             self.local_memory = []
 
     def sample(self, batch_size):

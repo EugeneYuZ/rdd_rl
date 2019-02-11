@@ -61,12 +61,12 @@ class DRQN(nn.Module):
 
 if __name__ == '__main__':
     env = gym.make('PongNoFrameskip-v4')
-    env = wrap_dqn(env)
-    # env = wrap_drqn(env)
+    # env = wrap_dqn(env)
+    env = wrap_drqn(env)
 
     agent = DRQNSliceAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
                            exploration=LinearSchedule(100000, 0.02),
-                           batch_size=32, target_update_frequency=1000, memory_size=500, sequence_len=10)
+                           batch_size=32, target_update_frequency=1000, memory_size=100000, sequence_len=10)
     # agent = DRQNSliceStackAgent(DRQN, model=DRQN(env.observation_space.shape, env.action_space.n), env=env,
     #                        exploration=LinearSchedule(100000, 0.02),
     #                        batch_size=32, target_update_frequency=1000, memory_size=500, sequence_len=10)

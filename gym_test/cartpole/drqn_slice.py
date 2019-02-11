@@ -61,7 +61,7 @@ def train():
     env = gym.make("CartPole-v1")
     agent = CartPoleDRQNSliceAgent(DRQN, model=DRQN(), env=env,
                                    exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.02),
-                                   batch_size=32, memory_size=1000, min_mem=100, sequence_len=32)
+                                   batch_size=32, memory_size=100000, min_mem=100, sequence_len=32)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/cartpole/data/drqn_slice'
     agent.train(10000, 10000, 100, False, print_step=False)
 

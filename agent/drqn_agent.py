@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, deque
 import random
 import time
 import os
@@ -17,9 +17,10 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'
 
 class EpisodicReplayMemory(object):
     def __init__(self, capacity):
+        self.memory = deque()
+        self.local_memory = []
         self.capacity = capacity
-        self.memory = [[]]
-        self.position = 0
+        self.current_len = 0
 
     def push(self, *args):
         state, action, next_state, reward = args
@@ -29,18 +30,17 @@ class EpisodicReplayMemory(object):
             next_state = next_state.to('cpu')
         reward = reward.to('cpu')
 
-        if self.memory[-1] and self.memory[-1][-1].next_state is None:
-            self.memory.append([])
-            if len(self.memory) > self.capacity:
-                self.memory = self.memory[1:]
+        self.local_memory.append(Transition(state, action, next_state, reward))
 
-        self.memory[-1].append(Transition(state, action, next_state, reward))
+        if next_state is None:
+            self.memory.append(self.local_memory)
+            self.current_len += len(self.local_memory)
+            if self.current_len > self.capacity:
+                self.memory.popleft()
+            self.local_memory = []
 
     def sample(self, batch_size):
-        if self.memory[-1] and self.memory[-1][-1].next_state is None:
-            return random.sample(self.memory, batch_size)
-        else:
-            return random.sample(self.memory[:-1], batch_size)
+        return random.sample(self.memory, batch_size)
 
     def __len__(self):
         return len(self.memory)
