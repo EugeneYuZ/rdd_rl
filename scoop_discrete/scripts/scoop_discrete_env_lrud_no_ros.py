@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import gym.spaces as spaces
 
 from vrep_arm_toolkit.simulation import vrep
 from vrep_arm_toolkit.robots.ur5 import UR5
@@ -22,6 +23,8 @@ class ScoopEnv:
         self.rdd = RDD(self.sim_client)
         self.ur5 = UR5(self.sim_client, self.rdd)
         self.nA = 4
+
+        self.observation_space = np.zeros((1, 20))
 
         self.cube = None
         self.cube_start_position = [-0.2, 0.85, 0.025]

@@ -24,23 +24,28 @@ class SliceReplayMemory:
 
     def push(self, *args):
         state, action, next_state, reward = args
-        state = state.to('cpu')
+        if type(state) is tuple:
+            state = map(lambda x: x.to('cpu'), state)
+        else:
+            state = state.to('cpu')
         action = action.to('cpu')
         if next_state is not None:
-            next_state = next_state.to('cpu')
+            if type(next_state) is tuple:
+                next_state = map(lambda x: x.to('cpu'), next_state)
+            else:
+                next_state = next_state.to('cpu')
         reward = reward.to('cpu')
         if next_state is not None:
             self.local_memory.append(Transition(state, action, next_state, reward, 0, 0))
 
         else:
-            next_state = torch.zeros_like(state)
             self.local_memory.append(Transition(state, action, next_state, reward, 1, 0))
             while len(self.local_memory) < self.sequence_len:
                 self.local_memory.append(Transition(
-                    torch.zeros_like(state),
+                    None,
                     torch.tensor([[0]], dtype=torch.long),
-                    torch.zeros_like(state),
-                    0,
+                    None,
+                    torch.tensor([0.]),
                     0,
                     1
                 ))
@@ -50,22 +55,14 @@ class SliceReplayMemory:
             self.local_memory = []
 
     def sample(self, batch_size):
-        batch_state, batch_next_state, batch_action, batch_reward, batch_final_mask, batch_pad_mask = [], [], [], [], [], []
+        sample = []
         batch_indexes = np.random.choice(np.arange(len(self.memory)), batch_size, replace=False)
         for batch_idx in batch_indexes:
             episode = self.memory[batch_idx]
             start = random.randint(0, len(episode) - self.sequence_len)
             transitions = episode[start:start + self.sequence_len]
-            batch = Transition(*zip(*transitions))
-
-            batch_state.append(torch.cat(list(batch.state)))
-            batch_next_state.append(torch.cat(list(batch.next_state)))
-            batch_action.append(torch.cat(list(batch.action)))
-            batch_reward.append(torch.tensor(list(batch.reward)))
-            batch_final_mask.append(torch.tensor(list(batch.final_mask), dtype=torch.uint8))
-            batch_pad_mask.append(torch.tensor(list(batch.pad_mask), dtype=torch.uint8))
-
-        return Transition(batch_state, batch_action, batch_next_state, batch_reward, batch_final_mask, batch_pad_mask)
+            sample.append(transitions)
+        return sample
 
     def __len__(self):
         return sum(map(len, self.memory))
@@ -78,6 +75,7 @@ class DRQNSliceAgent(DRQNAgent):
         DRQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                            target_update_frequency, saving_dir, min_mem)
         self.memory = SliceReplayMemory(memory_size, sequence_len)
+        self.state_padding = torch.zeros(self.env.observation_space.shape).unsqueeze(0)
 
     def forwardPolicyNet(self, state):
         with torch.no_grad():
@@ -87,13 +85,32 @@ class DRQNSliceAgent(DRQNAgent):
             return q_values
 
     def unzipMemory(self, memory):
-        state = torch.stack(memory.state).to(self.device)
-        action = torch.stack(memory.action).to(self.device)
-        next_state = torch.stack(memory.next_state).to(self.device)
-        reward = torch.stack(memory.reward).to(self.device)
-        final_mask = torch.stack(memory.final_mask).to(self.device)
-        non_final_mask = 1 - final_mask
-        pad_mask = torch.stack(memory.pad_mask)
+        state_batch = []
+        action_batch = []
+        next_state_batch = []
+        reward_batch = []
+        final_mask_batch = []
+        pad_mask_batch = []
+
+        padding = self.state_padding
+
+        for episode in memory:
+            episode_transition = Transition(*zip(*episode))
+            state_batch.append(torch.cat([s if s is not None else padding
+                                          for s in episode_transition.state]))
+            action_batch.append(torch.cat(episode_transition.action))
+            next_state_batch.append(torch.cat([s if s is not None else padding
+                                               for s in episode_transition.next_state]))
+            reward_batch.append(torch.cat(episode_transition.reward))
+            final_mask_batch.append(torch.tensor(list(episode_transition.final_mask), dtype=torch.uint8))
+            pad_mask_batch.append(torch.tensor(list(episode_transition.pad_mask), dtype=torch.uint8))
+
+        state = torch.stack(state_batch).to(self.device)
+        action = torch.stack(action_batch).to(self.device)
+        next_state = torch.stack(next_state_batch).to(self.device)
+        reward = torch.stack(reward_batch).to(self.device)
+        final_mask = torch.stack(final_mask_batch).to(self.device)
+        pad_mask = torch.stack(pad_mask_batch)
         non_pad_mask = 1 - pad_mask
 
         return state, action, next_state, reward, final_mask, non_pad_mask
