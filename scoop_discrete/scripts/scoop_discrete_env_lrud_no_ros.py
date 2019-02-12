@@ -103,7 +103,7 @@ class ScoopEnv:
         # sim_ret, target_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
         if target_position[1] < 0.42 or target_position[1] > 0.95 or target_position[2] < 0 or target_position[
             2] > 0.2:
-            print 'Wrong arm position: ', target_position
+            # print 'Wrong arm position: ', target_position
             return None, -1, True, None
 
         # cube in wrong position
@@ -113,7 +113,7 @@ class ScoopEnv:
                 cube_position[0] > self.cube_start_position[0] + self.cube_size[0] or \
                 cube_position[1] < self.cube_start_position[1] - self.cube_size[1] or \
                 cube_position[1] > self.cube_start_position[1] + self.cube_size[1]:
-            print 'Wrong cube position: ', cube_position
+            # print 'Wrong cube position: ', cube_position
             return None, 0, True, None
 
         # cube is lifted

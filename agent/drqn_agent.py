@@ -46,7 +46,7 @@ class EpisodicReplayMemory(object):
 
 class DRQNAgent(DQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=10000):
+                 gamma=0.99, memory_size=100000, batch_size=1, target_update_frequency=1000, saving_dir=None, min_mem=10000):
         """
         base class for lstm dqn agent
         :param model_class: sub class of torch.nn.Module. class reference of the model
@@ -133,7 +133,7 @@ class DRQNAgent(DQNAgent):
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
+    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         self.hidden = None
-        DQNAgent.trainOneEpisode(self, num_episodes, max_episode_steps, save_freq, render, print_step)
+        DQNAgent.trainOneEpisode(self, num_episodes, max_episode_steps, save_freq, render)
 

@@ -118,5 +118,5 @@ class ConvDRQNAgent(DRQNSliceAgent):
 if __name__ == '__main__':
     agent = ConvDRQNAgent(DRQN, model=DRQN(), env=ScoopEnv(),
                           exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1), min_mem=1000)
-
-    agent.train(100000, max_episode_steps=200, print_step=False)
+    agent.loadCheckpoint('20190212192630')
+    agent.train(100000, max_episode_steps=200)

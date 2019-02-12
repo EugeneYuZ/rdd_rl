@@ -72,4 +72,4 @@ if __name__ == '__main__':
     #                        batch_size=32, target_update_frequency=1000, memory_size=500, sequence_len=10)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/drqn_slice'
     agent.loadCheckpoint('20190211223412')
-    agent.train(10000, 10000, print_step=False, save_freq=50)
+    agent.train(10000, 10000, save_freq=50)

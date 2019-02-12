@@ -16,9 +16,9 @@ class CartPoleDRQNAgent(DRQNAgent):
             r = -1
         return obs, r, done, info
 
-    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
+    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         while self.episodes_done < num_episodes:
-            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render, print_step)
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
             if len(self.episode_rewards) > 100:
                 avg = np.average(self.episode_rewards[-100:])
                 print 'avg reward in 100 episodes: ', avg

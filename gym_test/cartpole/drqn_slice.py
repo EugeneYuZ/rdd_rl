@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from tqdm import tqdm
+
 sys.path.append('../..')
 
 from util.utils import LinearSchedule
@@ -46,9 +48,9 @@ class CartPoleDRQNSliceAgent(DRQNSliceAgent):
             r = -1
         return obs, r, done, info
 
-    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
+    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         while self.episodes_done < num_episodes:
-            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render, print_step)
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
             if len(self.episode_rewards) > 100:
                 avg = np.average(self.episode_rewards[-100:])
                 print 'avg reward in 100 episodes: ', avg
@@ -63,7 +65,7 @@ def train():
                                    exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.02),
                                    batch_size=32, memory_size=100000, min_mem=10000, sequence_len=32)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/cartpole/data/drqn_slice'
-    agent.train(10000, 10000, 10000, False, print_step=False)
+    agent.train(10000, 10000, 10000, False)
 
 
 def plot(checkpoint):

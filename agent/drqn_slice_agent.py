@@ -70,7 +70,7 @@ class SliceReplayMemory:
 
 class DRQNSliceAgent(DRQNAgent):
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=1, target_update_frequency=1000, saving_dir=None,
+                 gamma=0.99, memory_size=100000, batch_size=1, target_update_frequency=1000, saving_dir=None,
                  min_mem=10000, sequence_len=32):
         DRQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                            target_update_frequency, saving_dir, min_mem)

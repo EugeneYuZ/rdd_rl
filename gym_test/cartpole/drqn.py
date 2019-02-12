@@ -39,7 +39,7 @@ def train():
                               exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.02),
                               batch_size=4, memory_size=100000, min_mem=100)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/cartpole/data/drqn'
-    agent.train(10000, 10000, 100, False, print_step=False)
+    agent.train(10000, 10000, 100, False)
 
 
 def plot(checkpoint):

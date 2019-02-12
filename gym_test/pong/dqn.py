@@ -65,4 +65,4 @@ if __name__ == '__main__':
                           exploration=LinearSchedule(100000, 0.02),
                           batch_size=32, target_update_frequency=1000, memory_size=100000)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/dqn'
-    agent.train(10000, 10000, print_step=False, save_freq=50)
+    agent.train(10000, 10000, save_freq=50)

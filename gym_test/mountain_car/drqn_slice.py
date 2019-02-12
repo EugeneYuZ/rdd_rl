@@ -35,8 +35,8 @@ if __name__ == '__main__':
     env = gym.make('MountainCar-v0')
     agent = DRQNSliceAgent(DRQN, model=DRQN(), env=env,
                            exploration=LinearSchedule(100000, initial_p=1.0, final_p=0.02),
-                           batch_size=32, memory_size=1000, min_mem=100, sequence_len=32)
+                           batch_size=32, sequence_len=10)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/mountain_car/data/drqn_slice'
-    # agent.train(10000, 2000, 100, False, False)
-    agent.loadCheckpoint('20190211161243', data_only=True)
-    plotLearningCurve(agent.episode_rewards)
+    agent.train(10000, 2000, 100, False)
+    # agent.loadCheckpoint('20190211161243', data_only=True)
+    # plotLearningCurve(agent.episode_rewards)

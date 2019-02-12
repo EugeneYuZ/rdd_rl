@@ -8,6 +8,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tqdm import tqdm, trange
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -44,7 +46,7 @@ class ReplayMemory(object):
 
 class DQNAgent:
     def __init__(self, model_class, model=None, env=None, exploration=None,
-                 gamma=0.99, memory_size=10000, batch_size=64, target_update_frequency=1000, saving_dir=None):
+                 gamma=0.99, memory_size=100000, batch_size=64, target_update_frequency=1000, saving_dir=None):
         """
         base class for dqn agent
         :param model_class: sub class of torch.nn.Module. class reference of the model
@@ -191,7 +193,7 @@ class DQNAgent:
         """
         return torch.tensor(obs, device=self.device, dtype=torch.float).unsqueeze(0)
 
-    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
+    def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         """
         train the network for on episode
         :param num_episodes: number of total episodes
@@ -199,43 +201,51 @@ class DQNAgent:
         :param save_freq: number of episodes per saving
         :return:
         """
-        print '------Episode {} / {}------'.format(self.episodes_done, num_episodes)
+        # tqdm.write('------Episode {} / {}------'.format(self.episodes_done, num_episodes))
         self.resetEnv()
         r_total = 0
-        for step in range(max_episode_steps):
-            if render:
-                self.env.render()
-            state = self.state
-            action, q = self.selectAction(state, require_q=True)
-            obs_, r, done, info = self.takeAction(action.item())
-            if print_step:
-                print 'step {}, action: {}, q: {}, reward: {} done: {}' \
-                    .format(step, action.item(), q, r, done)
-            r_total += r
-            if done or step == max_episode_steps - 1:
-                next_state = None
-            else:
-                next_state = self.getNextState(obs_)
-            reward = torch.tensor([r], device=self.device, dtype=torch.float)
-            self.memory.push(state, action, next_state, reward)
-            self.optimizeModel()
-            if self.steps_done % self.target_update == 0:
-                self.target_net.load_state_dict(self.policy_net.state_dict())
+        with trange(1, max_episode_steps+1, leave=False) as t:
 
-            if done or step == max_episode_steps - 1:
-                print '------Episode {} ended, total reward: {}, step: {}------' \
-                    .format(self.episodes_done, r_total, step)
-                print '------Total steps done: {}, current e: {} ------' \
-                    .format(self.steps_done, self.exploration.value(self.steps_done))
-                self.episodes_done += 1
-                self.episode_rewards.append(r_total)
-                self.episode_lengths.append(step)
-                if self.episodes_done % save_freq == 0:
-                    self.saveCheckpoint()
-                break
-            self.state = next_state
+            for step in t:
+                if render:
+                    self.env.render()
+                state = self.state
+                action, q = self.selectAction(state, require_q=True)
+                obs_, r, done, info = self.takeAction(action.item())
+                # if print_step:
+                #     print 'step {}, action: {}, q: {}, reward: {} done: {}' \
+                #         .format(step, action.item(), q, r, done)
+                r_total += r
+                # t.set_postfix(step='{:>5}'.format(step), q='{:>5}'.format(round(q, 4)), total_reward='{:>5}'.format(r_total))
+                t.set_postfix_str('step={:>5}, q={:>5}, total_reward={:>5}'.format(step, round(q, 2), r_total))
+                if done or step == max_episode_steps:
+                    next_state = None
+                else:
+                    next_state = self.getNextState(obs_)
+                reward = torch.tensor([r], device=self.device, dtype=torch.float)
+                self.memory.push(state, action, next_state, reward)
+                self.optimizeModel()
+                if self.steps_done % self.target_update == 0:
+                    self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False, print_step=True):
+                if done or step == max_episode_steps - 1:
+                    tqdm.write('------Episode {} ended, total reward: {}, step: {}------' \
+                        .format(self.episodes_done, r_total, step))
+                    tqdm.write('------Total steps done: {}, current e: {} ------' \
+                        .format(self.steps_done, self.exploration.value(self.steps_done)))
+                    # print '------Episode {} ended, total reward: {}, step: {}------' \
+                    #     .format(self.episodes_done, r_total, step)
+                    # print '------Total steps done: {}, current e: {} ------' \
+                    #     .format(self.steps_done, self.exploration.value(self.steps_done))
+                    self.episodes_done += 1
+                    self.episode_rewards.append(r_total)
+                    self.episode_lengths.append(step)
+                    if self.episodes_done % save_freq == 0:
+                        self.saveCheckpoint()
+                    break
+                self.state = next_state
+
+    def train(self, num_episodes, max_episode_steps=100, save_freq=100, render=False):
         """
         train the network for given number of episodes
         :param num_episodes:
@@ -244,8 +254,7 @@ class DQNAgent:
         :return:
         """
         while self.episodes_done < num_episodes:
-            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render, print_step)
-            print '--- mem length: {} ---'.format(len(self.memory))
+            self.trainOneEpisode(num_episodes, max_episode_steps, save_freq, render)
         self.saveCheckpoint()
 
     def getSavingState(self):
