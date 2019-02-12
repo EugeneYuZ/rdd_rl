@@ -10,6 +10,7 @@ class SimScoopEnv:
 
     def __init__(self):
         self.nA = 4
+        self.observation_space = np.zeros((1, 10))
 
         self.x_lim = [0, 10]
         self.y_lim = [0, 10]
