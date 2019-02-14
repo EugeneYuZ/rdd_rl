@@ -90,7 +90,7 @@ class SynDQNAgent:
         self.min_mem = min_mem
         self.state_padding = None
         if envs is not None:
-            self.state_padding = torch.zeros(self.envs[0].observation_space.shape).unsqueeze(0)
+            self.state_padding = torch.zeros(self.envs[0].observation_space.shape, device=self.device).unsqueeze(0)
 
     def getAliveEnvs(self):
         return [self.envs[idx] for idx in self.alive_idx]
@@ -128,8 +128,8 @@ class SynDQNAgent:
 
         mini_batch = Transition(*zip(*memory))
 
-        batch_state = map(lambda x: x if x is not None else padding, mini_batch.state)
-        batch_next_state = map(lambda x: x if x is not None else padding, mini_batch.next_state)
+        batch_state = map(lambda x: x if x is not None else padding.to('cpu'), mini_batch.state)
+        batch_next_state = map(lambda x: x if x is not None else padding.to('cpu'), mini_batch.next_state)
 
         state = torch.cat(batch_state).to(self.device)
         action = torch.cat(mini_batch.action).to(self.device)
@@ -178,17 +178,28 @@ class SynDQNAgent:
         def act(args):
             (env, action) = args
             return env.step(action)
-        alive_envs = self.getAliveEnvs()
-        rets = self.pool.map(act, (zip(alive_envs, actions)))
+        alive_envs = []
+        alive_actions = []
+        for idx in self.alive_idx:
+            alive_envs.append(self.envs[idx])
+            alive_actions.append(actions[idx])
+        # alive_envs = self.getAliveEnvs()
+        rets = self.pool.map(act, (zip(alive_envs, alive_actions)))
         return rets
 
     def getNextState(self, obss):
         next_states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
-                          if x is not None else None, obss)
+                          if x is not None else self.state_padding, obss)
         return next_states
 
     def pushMemory(self, states, actions, next_states, rewards, dones):
-        for i in range(len(actions)):
+        alive_states = []
+        alive_actions = []
+        for idx in self.alive_idx:
+            alive_states.append(states[idx])
+            alive_actions.append(actions[idx])
+        states, actions = alive_states, alive_actions
+        for i in range(len(self.alive_idx)):
             state = states[i]
             action = actions[i]
             next_state = next_states[i]
@@ -200,20 +211,18 @@ class SynDQNAgent:
 
     def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100):
         r_total = [0 for _ in range(self.n_env)]
-        t0 = time.time()
         states = self.resetEnv()
-        # print 'reset time: ', time.time() - t0
         with trange(1, max_episode_steps + 1, leave=False) as t:
             for step in t:
                 actions, qs = self.selectAction(states, True)
-                t0 = time.time()
                 rets = self.takeAction(map(lambda x: x.item(), actions))
-                # print 'act time: ', time.time() - t0
                 obs_s, rs, dones, infos = zip(*rets)
 
                 next_states = self.getNextState(obs_s)
                 rewards = map(lambda x: torch.tensor([x], device=self.device, dtype=torch.float), rs)
                 self.steps_done += len(self.alive_idx)
+
+                self.pushMemory(states, actions, next_states, rewards, dones)
 
                 for i, idx in enumerate(copy.copy(self.alive_idx)):
                     r_total[idx] += rs[i]
@@ -226,8 +235,6 @@ class SynDQNAgent:
 
                 t.set_postfix_str('step={}, total_reward={}'.format(step, r_total))
 
-                self.pushMemory(states, actions, next_states, rewards, dones)
-
                 self.optimizeModel()
                 if self.steps_done % self.target_update < self.n_env:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -239,7 +246,11 @@ class SynDQNAgent:
                     if self.episodes_done % save_freq < self.n_env:
                         self.saveCheckpoint()
                     break
+
                 states = filter(lambda x: x is not None, next_states)
+                for i in range(self.n_env):
+                    if i not in self.alive_idx:
+                        states.insert(i, self.state_padding)
 
     def train(self, num_episodes, max_episode_steps=100, save_freq=100):
         """
@@ -319,93 +330,93 @@ class SynDQNAgent:
             self.memory = memory['memory']
 
 
-# class DQN(torch.nn.Module):
-#     def __init__(self):
-#         super(DQN, self).__init__()
-#
-#         self.fc1 = nn.Linear(4, 64)
-#         self.fc2 = nn.Linear(64, 128)
-#         self.fc3 = nn.Linear(128, 2)
-#
-#     def forward(self, x):
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
-
-
-class DQN(nn.Module):
-    def __init__(self, input_shape, n_actions):
+class DQN(torch.nn.Module):
+    def __init__(self):
         super(DQN, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1),
-            nn.ReLU()
-        )
-        conv_out_size = self._get_conv_out(input_shape)
 
-        self.fc1 = nn.Linear(conv_out_size, 512)
-        self.fc2 = nn.Linear(512, n_actions)
-
-    def _get_conv_out(self, shape):
-        o = self.conv(torch.zeros(1, *shape))
-
-        return int(np.prod(o.size()))
+        self.fc1 = nn.Linear(4, 64)
+        self.fc2 = nn.Linear(64, 128)
+        self.fc3 = nn.Linear(128, 2)
 
     def forward(self, x):
-        x = x.float() / 256
-        conv_out = self.conv(x)
-        x = conv_out.view(x.size()[0], -1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         return x
-
-#
-# if __name__ == '__main__':
-#     envs = []
-#     for i in range(4):
-#         env = gym.make("CartPole-v1")
-#         env.seed(i)
-#         envs.append(env)
-#
-#     agent = SynDQNAgent(DQN, envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=1000)
-#     agent.train(10000, 500)
-
-
-class DQNStackAgent(SynDQNAgent):
-    def __init__(self, *args, **kwargs):
-        SynDQNAgent.__init__(self, *args, **kwargs)
-
-    def resetEnv(self):
-        def reset(env):
-            return env.reset()
-        obss = self.pool.map(reset, self.envs)
-        obss = map(lambda x: np.array(x), obss)
-        self.alive_idx = [i for i in range(self.n_env)]
-        states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0), obss)
-        return states
-
-    def getNextState(self, obss):
-        obss = map(lambda x: np.array(x), obss)
-        next_states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
-                          if x is not None else None, obss)
-        return next_states
 
 
 if __name__ == '__main__':
     envs = []
     for i in range(4):
-        env = gym.make('PongNoFrameskip-v4')
-        env = wrap_dqn(env)
+        env = gym.make("CartPole-v1")
         env.seed(i)
         envs.append(env)
 
-    agent = DQNStackAgent(DQN(envs[0].observation_space.shape, envs[0].action_space.n), envs, exploration=LinearSchedule(100000, 0.02),
-                          batch_size=128, target_update_frequency=1000, memory_size=100000, min_mem=10000)
-    agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/syn_dqn'
-    agent.loadCheckpoint('20190214001100')
-    agent.train(10000, 10000)
+    agent = SynDQNAgent(DQN(), envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=1000)
+    agent.train(10000, 500)
+
+
+# class DQN(nn.Module):
+#     def __init__(self, input_shape, n_actions):
+#         super(DQN, self).__init__()
+#         self.conv = nn.Sequential(
+#             nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
+#             nn.ReLU(),
+#             nn.Conv2d(32, 64, kernel_size=4, stride=2),
+#             nn.ReLU(),
+#             nn.Conv2d(64, 64, kernel_size=3, stride=1),
+#             nn.ReLU()
+#         )
+#         conv_out_size = self._get_conv_out(input_shape)
+#
+#         self.fc1 = nn.Linear(conv_out_size, 512)
+#         self.fc2 = nn.Linear(512, n_actions)
+#
+#     def _get_conv_out(self, shape):
+#         o = self.conv(torch.zeros(1, *shape))
+#
+#         return int(np.prod(o.size()))
+#
+#     def forward(self, x):
+#         x = x.float() / 256
+#         conv_out = self.conv(x)
+#         x = conv_out.view(x.size()[0], -1)
+#         x = self.fc1(x)
+#         x = F.relu(x)
+#         x = self.fc2(x)
+#         return x
+
+
+# class DQNStackAgent(SynDQNAgent):
+#     def __init__(self, *args, **kwargs):
+#         SynDQNAgent.__init__(self, *args, **kwargs)
+#
+#     def resetEnv(self):
+#         def reset(env):
+#             return env.reset()
+#         obss = self.pool.map(reset, self.envs)
+#         obss = map(lambda x: np.array(x), obss)
+#         self.alive_idx = [i for i in range(self.n_env)]
+#         states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0), obss)
+#         return states
+#
+#     def getNextState(self, obss):
+#         obss = map(lambda x: np.array(x), obss)
+#         next_states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
+#                           if x is not None else None, obss)
+#         return next_states
+#
+#
+# if __name__ == '__main__':
+#     envs = []
+#     for i in range(4):
+#         env = gym.make('PongNoFrameskip-v4')
+#         env = wrap_dqn(env)
+#         env.seed(i)
+#         envs.append(env)
+#
+#     agent = DQNStackAgent(DQN(envs[0].observation_space.shape, envs[0].action_space.n), envs, exploration=LinearSchedule(100000, 0.02),
+#                           batch_size=128, target_update_frequency=1000, memory_size=100000, min_mem=10000)
+#     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/syn_dqn'
+#     agent.loadCheckpoint('20190214001100')
+#     agent.train(10000, 10000)
