@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from syn_dqn_agent import SynDQNAgent
 
 from util.utils import *
-from gym_test.wrapper import wrap_dqn
+from gym_test.wrapper import wrap_drqn
 
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward', 'final_mask', 'pad_mask'))
@@ -32,6 +32,7 @@ class SliceReplayMemory:
 
     def sample(self, batch_size):
         sample = []
+        batch_size = min(batch_size, len(self.memory))
         batch_indexes = np.random.choice(np.arange(len(self.memory)), batch_size, replace=False)
         for batch_idx in batch_indexes:
             episode = self.memory[batch_idx]
@@ -244,7 +245,7 @@ class DRQN(nn.Module):
 
 class DRQNStackAgent(SynDRQNAgent):
     def __init__(self, *args, **kwargs):
-        SynDQNAgent.__init__(self, *args, **kwargs)
+        SynDRQNAgent.__init__(self, *args, **kwargs)
 
     def resetEnv(self):
         def reset(env):
@@ -266,12 +267,11 @@ if __name__ == '__main__':
     envs = []
     for i in range(4):
         env = gym.make('PongNoFrameskip-v4')
-        env = wrap_dqn(env)
+        env = wrap_drqn(env)
         env.seed(i)
         envs.append(env)
 
     agent = DRQNStackAgent(DRQN(envs[0].observation_space.shape, envs[0].action_space.n), envs, exploration=LinearSchedule(100000, 0.02),
-                          batch_size=128, target_update_frequency=1000, memory_size=100000, min_mem=10000)
+                          batch_size=128, target_update_frequency=1000, memory_size=100000, min_mem=10000, sequence_len=10)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/syn_drqn'
-    agent.loadCheckpoint('20190214001100')
     agent.train(10000, 10000, 200)
