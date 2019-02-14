@@ -100,8 +100,12 @@ class SynDQNAgent:
             q_values = self.policy_net(x)
             return q_values
 
-    def selectAction(self, states, require_q=False):
+    def getStateInputTensor(self, states):
         states_tensor = torch.cat(states)
+        return states_tensor
+
+    def selectAction(self, states, require_q=False):
+        states_tensor = self.getStateInputTensor(states)
         output = self.forwardPolicyNet(states_tensor)
         actions = []
         q_values = []
@@ -166,31 +170,35 @@ class SynDQNAgent:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-    def resetEnv(self):
-        def reset(env):
-            return env.reset()
-        obss = self.pool.map(reset, self.envs)
-        self.alive_idx = [i for i in range(self.n_env)]
-        states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0), obss)
+    @staticmethod
+    def _reset(env):
+        return env.reset()
+
+    def getStateFromObs(self, obss):
+        states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
+                     if x is not None else self.state_padding, obss)
         return states
 
+    def resetEnv(self):
+        obss = self.pool.map(self._reset, self.envs)
+        self.alive_idx = [i for i in range(self.n_env)]
+        states = self.getStateFromObs(obss)
+        return states
+
+    @staticmethod
+    def _act(args):
+        (env, action) = args
+        return env.step(action)
+
     def takeAction(self, actions):
-        def act(args):
-            (env, action) = args
-            return env.step(action)
         alive_envs = []
         alive_actions = []
         for idx in self.alive_idx:
             alive_envs.append(self.envs[idx])
             alive_actions.append(actions[idx])
         # alive_envs = self.getAliveEnvs()
-        rets = self.pool.map(act, (zip(alive_envs, alive_actions)))
+        rets = self.pool.map(self._act, (zip(alive_envs, alive_actions)))
         return rets
-
-    def getNextState(self, obss):
-        next_states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
-                          if x is not None else self.state_padding, obss)
-        return next_states
 
     def pushMemory(self, states, actions, next_states, rewards, dones):
         alive_states = []
@@ -218,7 +226,7 @@ class SynDQNAgent:
                 rets = self.takeAction(map(lambda x: x.item(), actions))
                 obs_s, rs, dones, infos = zip(*rets)
 
-                next_states = self.getNextState(obs_s)
+                next_states = self.getStateFromObs(obs_s)
                 rewards = map(lambda x: torch.tensor([x], device=self.device, dtype=torch.float), rs)
                 self.steps_done += len(self.alive_idx)
 
