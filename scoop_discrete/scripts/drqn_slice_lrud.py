@@ -3,7 +3,7 @@ import numpy as np
 sys.path.append('../..')
 
 from util.utils import LinearSchedule
-from util.plot import plotLearningCurve
+from util.plot import *
 from agent.drqn_slice_agent import *
 from scoop_discrete_env_lrud_no_ros import ScoopEnv
 

@@ -111,7 +111,6 @@ class DRQNAgent(DQNAgent):
         if len(self.memory) < self.min_mem:
             return
         mini_memory = self.memory.sample(self.batch_size)
-        # mini_memory.sort(key=lambda x: len(x), reverse=True)
 
         state_batch, action_batch, next_state_batch, reward_batch, final_mask, non_pad_mask = self.unzipMemory(mini_memory)
 

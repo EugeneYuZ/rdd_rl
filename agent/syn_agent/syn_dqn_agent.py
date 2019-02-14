@@ -17,6 +17,7 @@ import gym
 import sys
 sys.path.append('../..')
 from util.utils import *
+from gym_test.wrapper import wrap_dqn
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward', 'final_mask', 'pad_mask'))
 
@@ -55,22 +56,25 @@ class ReplayMemory:
 
 
 class SynDQNAgent:
-    def __init__(self, model_class, envs, exploration,
+    def __init__(self, model, envs, exploration,
                  gamma=0.99, memory_size=100000, batch_size=64, target_update_frequency=1000, saving_dir=None, min_mem=1000):
 
-        self.model_class = model_class
         self.exploration = exploration
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.policy_net = model_class()
-        self.target_net = copy.deepcopy(self.policy_net)
-        self.policy_net = self.policy_net.to(self.device)
-        self.target_net = self.target_net.to(self.device)
-        self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
-
+        self.policy_net = None
+        self.target_net = None
+        self.optimizer = None
+        if model:
+            self.policy_net = model
+            self.target_net = copy.deepcopy(self.policy_net)
+            self.policy_net = self.policy_net.to(self.device)
+            self.target_net = self.target_net.to(self.device)
+            self.target_net.eval()
+            self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.envs = envs
         self.n_env = len(envs)
         self.alive_idx = [i for i in range(self.n_env)]
+        self.pool = Pool(self.n_env)
 
         self.memory = ReplayMemory(memory_size)
         self.batch_size = batch_size
@@ -165,10 +169,7 @@ class SynDQNAgent:
     def resetEnv(self):
         def reset(env):
             return env.reset()
-        p = Pool(self.n_env)
-        obss = p.map(reset, self.envs)
-        p.close()
-        p.join()
+        obss = self.pool.map(reset, self.envs)
         self.alive_idx = [i for i in range(self.n_env)]
         states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0), obss)
         return states
@@ -177,11 +178,8 @@ class SynDQNAgent:
         def act(args):
             (env, action) = args
             return env.step(action)
-        p = Pool(len(self.alive_idx))
         alive_envs = self.getAliveEnvs()
-        rets = p.map(act, (zip(alive_envs, actions)))
-        p.close()
-        p.join()
+        rets = self.pool.map(act, (zip(alive_envs, actions)))
         return rets
 
     def getNextState(self, obss):
@@ -202,11 +200,15 @@ class SynDQNAgent:
 
     def trainOneEpisode(self, num_episodes, max_episode_steps=100, save_freq=100):
         r_total = [0 for _ in range(self.n_env)]
+        t0 = time.time()
         states = self.resetEnv()
+        # print 'reset time: ', time.time() - t0
         with trange(1, max_episode_steps + 1, leave=False) as t:
             for step in t:
                 actions, qs = self.selectAction(states, True)
+                t0 = time.time()
                 rets = self.takeAction(map(lambda x: x.item(), actions))
+                # print 'act time: ', time.time() - t0
                 obs_s, rs, dones, infos = zip(*rets)
 
                 next_states = self.getNextState(obs_s)
@@ -317,27 +319,93 @@ class SynDQNAgent:
             self.memory = memory['memory']
 
 
-class DQN(torch.nn.Module):
-    def __init__(self):
-        super(DQN, self).__init__()
+# class DQN(torch.nn.Module):
+#     def __init__(self):
+#         super(DQN, self).__init__()
+#
+#         self.fc1 = nn.Linear(4, 64)
+#         self.fc2 = nn.Linear(64, 128)
+#         self.fc3 = nn.Linear(128, 2)
+#
+#     def forward(self, x):
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
 
-        self.fc1 = nn.Linear(4, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 2)
+
+class DQN(nn.Module):
+    def __init__(self, input_shape, n_actions):
+        super(DQN, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            nn.ReLU()
+        )
+        conv_out_size = self._get_conv_out(input_shape)
+
+        self.fc1 = nn.Linear(conv_out_size, 512)
+        self.fc2 = nn.Linear(512, n_actions)
+
+    def _get_conv_out(self, shape):
+        o = self.conv(torch.zeros(1, *shape))
+
+        return int(np.prod(o.size()))
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = x.float() / 256
+        conv_out = self.conv(x)
+        x = conv_out.view(x.size()[0], -1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
         return x
+
+#
+# if __name__ == '__main__':
+#     envs = []
+#     for i in range(4):
+#         env = gym.make("CartPole-v1")
+#         env.seed(i)
+#         envs.append(env)
+#
+#     agent = SynDQNAgent(DQN, envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=1000)
+#     agent.train(10000, 500)
+
+
+class DQNStackAgent(SynDQNAgent):
+    def __init__(self, *args, **kwargs):
+        SynDQNAgent.__init__(self, *args, **kwargs)
+
+    def resetEnv(self):
+        def reset(env):
+            return env.reset()
+        obss = self.pool.map(reset, self.envs)
+        obss = map(lambda x: np.array(x), obss)
+        self.alive_idx = [i for i in range(self.n_env)]
+        states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0), obss)
+        return states
+
+    def getNextState(self, obss):
+        obss = map(lambda x: np.array(x), obss)
+        next_states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
+                          if x is not None else None, obss)
+        return next_states
 
 
 if __name__ == '__main__':
     envs = []
     for i in range(4):
-        env = gym.make("CartPole-v1")
+        env = gym.make('PongNoFrameskip-v4')
+        env = wrap_dqn(env)
         env.seed(i)
         envs.append(env)
 
-    agent = SynDQNAgent(DQN, envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=1000)
-    agent.train(10000, 500)
+    agent = DQNStackAgent(DQN(envs[0].observation_space.shape, envs[0].action_space.n), envs, exploration=LinearSchedule(100000, 0.02),
+                          batch_size=128, target_update_frequency=1000, memory_size=100000, min_mem=10000)
+    agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/syn_dqn'
+    agent.loadCheckpoint('20190214001100')
+    agent.train(10000, 10000)

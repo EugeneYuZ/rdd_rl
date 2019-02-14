@@ -75,7 +75,9 @@ class DRQNSliceAgent(DRQNAgent):
         DRQNAgent.__init__(self, model_class, model, env, exploration, gamma, memory_size, batch_size,
                            target_update_frequency, saving_dir, min_mem)
         self.memory = SliceReplayMemory(memory_size, sequence_len)
-        self.state_padding = torch.zeros(self.env.observation_space.shape).unsqueeze(0)
+        self.state_padding = None
+        if env is not None:
+            self.state_padding = torch.zeros(self.env.observation_space.shape).unsqueeze(0)
 
     def forwardPolicyNet(self, state):
         with torch.no_grad():
