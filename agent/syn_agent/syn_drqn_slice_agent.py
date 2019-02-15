@@ -121,11 +121,24 @@ class SynDRQNAgent(SynDQNAgent):
 
     def pushMemory(self, states, actions, next_states, rewards, dones):
         for i, idx in enumerate(self.alive_idx):
-            state = states[i].to('cpu')
-            action = actions[i].to('cpu')
-            next_state = next_states[i].to('cpu')
-            reward = rewards[i].to('cpu')
+            state = states[i]
+            action = actions[i]
+            next_state = next_states[i]
+            reward = rewards[i]
             done = dones[i]
+
+            if type(state) is tuple:
+                state = map(lambda x: x.to('cpu'), state)
+            else:
+                state = state.to('cpu')
+            action = action.to('cpu')
+            if next_state is not None:
+                if type(next_state) is tuple:
+                    next_state = map(lambda x: x.to('cpu'), next_state)
+                else:
+                    next_state = next_state.to('cpu')
+            reward = reward.to('cpu')
+
             if not done:
                 self.local_memory[idx].append(Transition(state, action, next_state, reward, 0, 0))
             else:
@@ -147,131 +160,4 @@ class SynDRQNAgent(SynDQNAgent):
         SynDQNAgent.trainOneEpisode(self, num_episodes, max_episode_steps, save_freq)
 
 
-# class DRQN(torch.nn.Module):
-#     def __init__(self):
-#         super(DRQN, self).__init__()
-#
-#         self.fc1 = nn.Linear(4, 64)
-#         self.lstm = nn.LSTM(64, 128, batch_first=True)
-#         self.fc2 = nn.Linear(128, 2)
-#
-#     def forward(self, x, hidden=None):
-#         x = F.relu(self.fc1(x))
-#         if hidden is None:
-#             x, hidden = self.lstm(x)
-#         else:
-#             x, hidden = self.lstm(x, hidden)
-#         x = self.fc2(x)
-#         return x, hidden
-#
-#
-# class CartPoleDRQNAgent(SynDRQNAgent):
-#     def __init__(self, *args, **kwargs):
-#         SynDRQNAgent.__init__(self, *args, **kwargs)
-#
-#     def takeAction(self, actions):
-#         def act(args):
-#             (env, action) = args
-#             obs, r, done, info = env.step(action)
-#             if done:
-#                 r = -1
-#             return obs, r, done, info
-#
-#         alive_envs = []
-#         alive_actions = []
-#         for idx in self.alive_idx:
-#             alive_envs.append(self.envs[idx])
-#             alive_actions.append(actions[idx])
-#         # alive_envs = self.getAliveEnvs()
-#         rets = self.pool.map(act, (zip(alive_envs, alive_actions)))
-#         return rets
-#
-#     def train(self, num_episodes, max_episode_steps=100, save_freq=100):
-#         while self.episodes_done < num_episodes:
-#             self.trainOneEpisode(num_episodes, max_episode_steps, save_freq)
-#             if len(self.episode_rewards) > 100:
-#                 avg = np.average(self.episode_rewards[-100:])
-#                 print 'avg reward in 100 episodes: ', avg
-#                 if avg > 195:
-#                     print 'solved'
-#                     return
-#
-# if __name__ == '__main__':
-#     envs = []
-#     for i in range(4):
-#         env = gym.make("CartPole-v1")
-#         env.seed(i)
-#         envs.append(env)
-#
-#     agent = CartPoleDRQNAgent(DRQN(), envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=10000, sequence_len=32)
-#     agent.train(10000, 500)
 
-
-class DRQN(nn.Module):
-    def __init__(self, input_shape, n_actions):
-        super(DRQN, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1),
-            nn.ReLU()
-        )
-        conv_out_size = self._get_conv_out(input_shape)
-
-        self.lstm = nn.LSTM(conv_out_size, 512, batch_first=True)
-        self.fc = nn.Linear(512, n_actions)
-
-    def _get_conv_out(self, shape):
-        o = self.conv(torch.zeros(1, *shape))
-
-        return int(np.prod(o.size()))
-
-    def forward(self, x, hidden=None):
-        x = x.float() / 256
-        shape = x.shape
-        x = x.view(shape[0]*shape[1], shape[2], shape[3], shape[4])
-        conv_out = self.conv(x)
-        x = conv_out.view(shape[0], shape[1], -1)
-        if hidden is None:
-            x, hidden = self.lstm(x)
-        else:
-            x, hidden = self.lstm(x, hidden)
-        x = self.fc(x)
-        return x, hidden
-
-
-
-class DRQNStackAgent(SynDRQNAgent):
-    def __init__(self, *args, **kwargs):
-        SynDRQNAgent.__init__(self, *args, **kwargs)
-
-    def resetEnv(self):
-        def reset(env):
-            return env.reset()
-        obss = self.pool.map(reset, self.envs)
-        obss = map(lambda x: np.array(x), obss)
-        self.alive_idx = [i for i in range(self.n_env)]
-        states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0), obss)
-        return states
-
-    def getNextState(self, obss):
-        obss = map(lambda x: np.array(x), obss)
-        next_states = map(lambda x: torch.tensor(x, device=self.device, dtype=torch.float).unsqueeze(0)
-                          if x is not None else None, obss)
-        return next_states
-
-
-if __name__ == '__main__':
-    envs = []
-    for i in range(4):
-        env = gym.make('PongNoFrameskip-v4')
-        env = wrap_drqn(env)
-        env.seed(i)
-        envs.append(env)
-
-    agent = DRQNStackAgent(DRQN(envs[0].observation_space.shape, envs[0].action_space.n), envs, exploration=LinearSchedule(100000, 0.02),
-                          batch_size=128, target_update_frequency=1000, memory_size=100000, min_mem=10000, sequence_len=10)
-    agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/pong/data/syn_drqn'
-    agent.train(10000, 10000, 200)
