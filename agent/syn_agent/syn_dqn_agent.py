@@ -89,7 +89,8 @@ class SynDQNAgent:
         self.state = None
         self.min_mem = min_mem
         self.state_padding = None
-        if envs is not None:
+
+        if envs is not None and hasattr(envs[0].observation_space, 'shape'):
             self.state_padding = torch.zeros(self.envs[0].observation_space.shape, device=self.device).unsqueeze(0)
 
     def getAliveEnvs(self):

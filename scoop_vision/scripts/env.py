@@ -27,7 +27,7 @@ class ScoopEnv:
         self.sensor = VisionSensor(self.sim_client, 'Vision_sensor', None, None, True, False)
         self.nA = 4
 
-        self.observation_space = np.zeros((1, 20))
+        self.observation_space = (np.zeros((3, 64, 64)), np.zeros((1, 20)))
 
         self.cube = None
         self.cube_start_position = [-0.2, 0.85, 0.025]
@@ -44,8 +44,8 @@ class ScoopEnv:
         if len(p) == 0:
             p = [0.]
         xs = [i for i in range(len(p))]
-        resampled = np.interp(np.linspace(0, len(p) - 1, 20), xs, p).tolist()
-        return resampled, self.sensor.getColorData()
+        resampled = np.interp(np.linspace(0, len(p) - 1, 20), xs, p)
+        return np.rollaxis(self.sensor.getColorData(), 2, 0), np.expand_dims(resampled, 0)
 
     def reset(self):
         """
