@@ -121,8 +121,8 @@ class SynDRQNAgent(SynDQNAgent):
 
     def pushMemory(self, states, actions, next_states, rewards, dones):
         for i, idx in enumerate(self.alive_idx):
-            state = states[idx]
-            action = actions[idx]
+            state = states[i]
+            action = actions[i]
             next_state = next_states[i]
             reward = rewards[i]
             done = dones[i]

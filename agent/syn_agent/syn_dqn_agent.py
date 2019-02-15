@@ -201,9 +201,9 @@ class SynDQNAgent:
         return rets
 
     def pushMemory(self, states, actions, next_states, rewards, dones):
-        for i, idx in enumerate(self.alive_idx):
-            state = states[idx]
-            action = actions[idx]
+        for i in range(len(self.alive_idx)):
+            state = states[i]
+            action = actions[i]
             next_state = next_states[i]
             reward = rewards[i]
             done = dones[i]
@@ -224,7 +224,11 @@ class SynDQNAgent:
                 rewards = map(lambda x: torch.tensor([x], device=self.device, dtype=torch.float), rs)
                 self.steps_done += len(self.alive_idx)
 
-                self.pushMemory(states, actions, next_states, rewards, dones)
+                alive_states = [states[idx] for idx in self.alive_idx]
+                alive_actions = [actions[idx] for idx in self.alive_idx]
+                if step == max_episode_steps:
+                    dones = [True for _ in dones]
+                self.pushMemory(alive_states, alive_actions, next_states, rewards, dones)
 
                 for i, idx in enumerate(copy.copy(self.alive_idx)):
                     r_total[idx] += rs[i]
@@ -240,7 +244,7 @@ class SynDQNAgent:
                 self.optimizeModel()
                 if self.steps_done % self.target_update < self.n_env:
                     self.target_net.load_state_dict(self.policy_net.state_dict())
-                if len(self.alive_idx) == 0 or step == max_episode_steps - 1:
+                if len(self.alive_idx) == 0 or step == max_episode_steps:
                     tqdm.write('------Episode {} ended, total reward: {}, step: {}------' \
                                .format(self.episodes_done, r_total, step))
                     tqdm.write('------Total steps done: {}, current e: {} ------' \
