@@ -79,4 +79,4 @@ def plot(checkpoint):
 
 if __name__ == '__main__':
     train()
-    plot('20190212151043')
+    # plot('20190212151043')

@@ -201,15 +201,9 @@ class SynDQNAgent:
         return rets
 
     def pushMemory(self, states, actions, next_states, rewards, dones):
-        alive_states = []
-        alive_actions = []
-        for idx in self.alive_idx:
-            alive_states.append(states[idx])
-            alive_actions.append(actions[idx])
-        states, actions = alive_states, alive_actions
-        for i in range(len(self.alive_idx)):
-            state = states[i]
-            action = actions[i]
+        for i, idx in enumerate(self.alive_idx):
+            state = states[idx]
+            action = actions[idx]
             next_state = next_states[i]
             reward = rewards[i]
             done = dones[i]
@@ -338,30 +332,30 @@ class SynDQNAgent:
             self.memory = memory['memory']
 
 
-class DQN(torch.nn.Module):
-    def __init__(self):
-        super(DQN, self).__init__()
-
-        self.fc1 = nn.Linear(4, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 2)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
-if __name__ == '__main__':
-    envs = []
-    for i in range(4):
-        env = gym.make("CartPole-v1")
-        env.seed(i)
-        envs.append(env)
-
-    agent = SynDQNAgent(DQN(), envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=1000)
-    agent.train(10000, 500)
+# class DQN(torch.nn.Module):
+#     def __init__(self):
+#         super(DQN, self).__init__()
+#
+#         self.fc1 = nn.Linear(4, 64)
+#         self.fc2 = nn.Linear(64, 128)
+#         self.fc3 = nn.Linear(128, 2)
+#
+#     def forward(self, x):
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
+#
+#
+# if __name__ == '__main__':
+#     envs = []
+#     for i in range(4):
+#         env = gym.make("CartPole-v1")
+#         env.seed(i)
+#         envs.append(env)
+#
+#     agent = SynDQNAgent(DQN(), envs, LinearSchedule(10000, 0.02), batch_size=128, min_mem=1000)
+#     agent.train(10000, 500)
 
 
 # class DQN(nn.Module):
