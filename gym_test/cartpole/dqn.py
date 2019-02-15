@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import sys
 
-sys.path.append('..')
+sys.path.append('../..')
 from agent.dqn_agent import DQNAgent
 
 from util.utils import LinearSchedule
@@ -45,10 +45,10 @@ class DQN(torch.nn.Module):
 def train():
     env = gym.make("CartPole-v1")
     agent = CartPoleDRQNAgent(DQN, model=DQN(), env=env,
-                          exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.1),
-                          batch_size=128, target_update_frequency=20)
+                          exploration=LinearSchedule(10000, initial_p=1.0, final_p=0.02),
+                          batch_size=32)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/gym_test/data/dqn_cartpole'
-    agent.train(10000, 200, 100, False)
+    agent.train(10000, 500, 10000, False)
 
 
 def plot(checkpoint):
@@ -60,5 +60,5 @@ def plot(checkpoint):
 
 
 if __name__ == '__main__':
-    # train()
-    plot('20190208021619')
+    train()
+    # plot('20190208021619')
