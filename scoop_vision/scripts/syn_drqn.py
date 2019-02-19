@@ -137,11 +137,11 @@ class Agent(SynDRQNAgent):
 
 if __name__ == '__main__':
     envs = []
-    for i in range(4):
+    for i in range(8):
         env = ScoopEnv(19997 + i)
         envs.append(env)
 
     agent = Agent(DRQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
-                  envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=200)
-    agent.train(10000, 200)
+                  envs, LinearSchedule(100000, 0.1), batch_size=128, min_mem=1000)
+    agent.train(100000, 200)
 
