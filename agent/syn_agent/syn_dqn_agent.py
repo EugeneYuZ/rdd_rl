@@ -72,7 +72,7 @@ class SynDQNAgent:
             self.target_net.eval()
             self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.envs = envs
-        self.n_env = len(envs)
+        self.n_env = len(envs) if envs is not None else 1
         self.alive_idx = [i for i in range(self.n_env)]
         self.pool = Pool(self.n_env)
 
