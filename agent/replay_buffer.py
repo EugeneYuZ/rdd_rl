@@ -1,8 +1,9 @@
 import numpy as np
 import random
-from collections import deque
+from collections import deque, namedtuple
 from util.segment_tree import SumSegmentTree, MinSegmentTree
 
+Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward', 'final_mask', 'pad_mask'))
 
 class ReplayBuffer(object):
     def __init__(self, size):
@@ -21,55 +22,50 @@ class ReplayBuffer(object):
     def __len__(self):
         return len(self._storage)
 
-    def add(self, obs_t, action, reward, obs_tp1, done):
-        data = (obs_t, action, reward, obs_tp1, done)
+    # def add(self, obs_t, action, reward, obs_tp1, done):
+    #     data = (obs_t, action, reward, obs_tp1, done)
+    #
+    #     if self._next_idx >= len(self._storage):
+    #         self._storage.append(data)
+    #     else:
+    #         self._storage[self._next_idx] = data
+    #     self._next_idx = (self._next_idx + 1) % self._maxsize
 
+    def push(self, *args):
+        state, action, next_state, reward = args
+        if type(state) is tuple:
+            state = map(lambda x: x.to('cpu'), state)
+        else:
+            state = state.to('cpu')
+
+        if next_state is not None:
+            final_mask = 0
+            if type(next_state) is tuple:
+                next_state = map(lambda x: x.to('cpu'), next_state)
+            else:
+                next_state = next_state.to('cpu')
+        else:
+            final_mask = 1
+
+        action = action.to('cpu')
+        reward = reward.to('cpu')
+        data = Transition(state, action, next_state, reward, final_mask, 0)
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
         else:
             self._storage[self._next_idx] = data
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
-    def _encode_sample(self, idxes):
-        obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
-        for i in idxes:
-            data = self._storage[i]
-            obs_t, action, reward, obs_tp1, done = data
-            obses_t.append(np.array(obs_t, copy=False))
-            actions.append(np.array(action, copy=False))
-            rewards.append(reward)
-            obses_tp1.append(np.array(obs_tp1, copy=False))
-            dones.append(done)
-        return np.array(obses_t), np.array(actions), np.array(rewards), np.array(obses_tp1), np.array(dones)
-
     def sample(self, batch_size):
-        """Sample a batch of experiences.
-
-        Parameters
-        ----------
-        batch_size: int
-            How many transitions to sample.
-
-        Returns
-        -------
-        obs_batch: np.array
-            batch of observations
-        act_batch: np.array
-            batch of actions executed given obs_batch
-        rew_batch: np.array
-            rewards received as results of executing act_batch
-        next_obs_batch: np.array
-            next set of observations seen after executing act_batch
-        done_mask: np.array
-            done_mask[i] = 1 if executing act_batch[i] resulted in
-            the end of an episode and 0 otherwise.
-        """
         idxes = [random.randint(0, len(self._storage) - 1) for _ in range(batch_size)]
-        return self._encode_sample(idxes)
+        samples = []
+        for idx in idxes:
+            samples.append(self._storage[idx])
+        return Transition(*zip(*samples))
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, size, alpha):
+    def __init__(self, size, alpha=0.5):
         """Create Prioritized Replay buffer.
 
         Parameters
@@ -97,10 +93,10 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self._it_min = MinSegmentTree(it_capacity)
         self._max_priority = 1.0
 
-    def add(self, *args, **kwargs):
+    def push(self, *args):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
-        ReplayBuffer.add(*args, **kwargs)
+        ReplayBuffer.push(self, *args)
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
 
@@ -114,7 +110,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             res.append(idx)
         return res
 
-    def sample(self, batch_size, beta):
+    def sample(self, batch_size, beta=0.5):
         """Sample a batch of experiences.
 
         compared to ReplayBuffer.sample
@@ -163,8 +159,11 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             weight = (p_sample * len(self._storage)) ** (-beta)
             weights.append(weight / max_weight)
         weights = np.array(weights)
-        encoded_sample = self._encode_sample(idxes)
-        return tuple(list(encoded_sample) + [weights, idxes])
+
+        samples = []
+        for idx in idxes:
+            samples.append(self._storage[idx])
+        return Transition(*zip(*samples)), weights, idxes
 
     def update_priorities(self, idxes, priorities):
         """Update priorities of sampled transitions.
