@@ -117,7 +117,7 @@ class ScoopEnv:
         if target_position[1] < 0.42 or target_position[1] > 0.95 or target_position[2] < 0 or target_position[
             2] > 0.2:
             # print 'Wrong arm position: ', target_position
-            return None, -1, True, None
+            return None, -100, True, None
 
         # cube in wrong position
         while any(np.isnan(cube_position)):
