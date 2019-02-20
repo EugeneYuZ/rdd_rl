@@ -72,7 +72,7 @@ class SynDQNAgent:
             self.target_net.eval()
             self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.envs = envs
-        self.n_env = len(envs)
+        self.n_env = len(envs) if envs is not None else 1
         self.alive_idx = [i for i in range(self.n_env)]
         self.pool = Pool(self.n_env)
 
@@ -240,7 +240,7 @@ class SynDQNAgent:
                         self.episodes_done += 1
                         next_states[i] = None
 
-                t.set_postfix_str('step={}, total_reward={}'.format(step, r_total))
+                t.set_postfix_str('step={}, total_reward={}'.format(step, map(lambda x: round(x, 2), r_total)))
 
                 self.optimizeModel()
                 if self.steps_done % self.target_update < self.n_env:

@@ -3,9 +3,9 @@ import numpy as np
 sys.path.append('../..')
 
 from util.utils import LinearSchedule
-from util.plot import plotLearningCurve
+from util.plot import *
 from agent.syn_agent.syn_drqn_slice_agent import *
-from env import ScoopEnv
+from env_dense_r import ScoopEnv
 
 
 class DRQN(torch.nn.Module):
@@ -43,7 +43,6 @@ class DRQN(torch.nn.Module):
 
     def forward(self, inputs, hidden=None):
         img, theta = inputs
-        img = img.float() / 256
         img_shape = img.shape
         img = img.view(img_shape[0]*img_shape[1], img_shape[2], img_shape[3], img_shape[4])
         img_conv_out = self.img_conv(img)
@@ -70,7 +69,8 @@ class Agent(SynDRQNAgent):
         saving_dir = '/home/ur5/thesis/rdd_rl/scoop_vision/data/syn_drqn'
         SynDRQNAgent.__init__(self, model, envs, exploration, gamma, memory_size, batch_size, target_update_frequency,
                               saving_dir, min_mem, sequence_len)
-        self.state_padding = (torch.zeros(self.envs[0].observation_space[0].shape, device=self.device).unsqueeze(0),
+        if envs is not None:
+            self.state_padding = (torch.zeros(self.envs[0].observation_space[0].shape, device=self.device).unsqueeze(0),
                               torch.zeros(self.envs[0].observation_space[1].shape, device=self.device).unsqueeze(0))
 
     def forwardPolicyNet(self, x):
@@ -142,6 +142,7 @@ if __name__ == '__main__':
         envs.append(env)
 
     agent = Agent(DRQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
-                  envs, LinearSchedule(100000, 0.1), batch_size=128, min_mem=1000)
-    agent.train(100000, 200)
+                  envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=1000)
+    agent.saving_dir = '/home/ur5/thesis/rdd_rl/scoop_vision/data/syn_drqn_dense'
+    agent.train(100000, 200, save_freq=500)
 
