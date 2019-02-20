@@ -5,7 +5,7 @@ sys.path.append('../..')
 from util.utils import LinearSchedule
 from util.plot import *
 from agent.syn_agent.syn_drqn_slice_agent import *
-from env import ScoopEnv
+from env_dense_r import ScoopEnv
 
 
 class DRQN(torch.nn.Module):
@@ -143,5 +143,6 @@ if __name__ == '__main__':
 
     agent = Agent(DRQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
                   envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=1000)
+    agent.saving_dir = '/home/ur5/thesis/rdd_rl/scoop_vision/data/syn_drqn_dense'
     agent.train(100000, 200, save_freq=500)
 

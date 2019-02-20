@@ -240,7 +240,7 @@ class SynDQNAgent:
                         self.episodes_done += 1
                         next_states[i] = None
 
-                t.set_postfix_str('step={}, total_reward={}'.format(step, r_total))
+                t.set_postfix_str('step={}, total_reward={}'.format(step, map(lambda x: round(x, 2), r_total)))
 
                 self.optimizeModel()
                 if self.steps_done % self.target_update < self.n_env:
