@@ -106,18 +106,13 @@ class ScoopEnv:
             target_pose[2, 3] += 0.03
         elif a == self.DOWN:
             target_pose[2, 3] -= 0.03
-        self.ur5.moveTo(target_pose)
+
+        target_position = target_pose[:, 3]
+        if 0.42 < target_position[1] < 0.95 and 0 < target_position[2] < 0.3:
+            self.ur5.moveTo(target_pose)
 
         sim_ret, cube_orientation = utils.getObjectOrientation(self.sim_client, self.cube)
         sim_ret, cube_position = utils.getObjectPosition(self.sim_client, self.cube)
-        sim_ret, target_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
-
-        # arm is in wrong pose
-        # sim_ret, target_position = utils.getObjectPosition(self.sim_client, self.ur5.UR5_target)
-        if target_position[1] < 0.42 or target_position[1] > 0.95 or target_position[2] < 0 or target_position[
-            2] > 0.2:
-            # print 'Wrong arm position: ', target_position
-            return None, -100, True, None
 
         # cube in wrong position
         while any(np.isnan(cube_position)):
@@ -127,7 +122,7 @@ class ScoopEnv:
                 cube_position[1] < self.cube_start_position[1] - self.cube_size[1] or \
                 cube_position[1] > self.cube_start_position[1] + self.cube_size[1]:
             # print 'Wrong cube position: ', cube_position
-            return None, 0, True, None
+            return None, self.getReward(), True, None
 
         # cube is lifted
         if cube_orientation[0] < -0.05:
