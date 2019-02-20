@@ -43,7 +43,6 @@ class DRQN(torch.nn.Module):
 
     def forward(self, inputs, hidden=None):
         img, theta = inputs
-        img = img.float() / 256
         img_shape = img.shape
         img = img.view(img_shape[0]*img_shape[1], img_shape[2], img_shape[3], img_shape[4])
         img_conv_out = self.img_conv(img)
@@ -143,6 +142,6 @@ if __name__ == '__main__':
         envs.append(env)
 
     agent = Agent(DRQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
-                  envs, LinearSchedule(100000, 0.1), batch_size=128, min_mem=1000)
-    agent.train(100000, 200)
+                  envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=1000)
+    agent.train(100000, 200, save_freq=500)
 
