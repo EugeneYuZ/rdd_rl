@@ -117,7 +117,7 @@ class ScoopEnv:
             return None, self.getReward(), True, None
 
         # cube is lifted
-        if cube_orientation[0] < -0.05:
+        if cube_orientation[0] < -0.02:
             return None, self.getReward(), True, None
 
         # cube is not lifted
