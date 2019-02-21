@@ -47,7 +47,6 @@ class DQN(torch.nn.Module):
         img_conv_out = self.img_conv(img)
         img_vec = img_conv_out.view(img_shape[0], -1)
 
-        theta_shape = theta.shape
         theta_conv_out = self.theta_conv(theta)
         theta_vec = theta_conv_out.view(img_shape[0], -1)
 
