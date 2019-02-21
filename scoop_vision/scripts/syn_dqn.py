@@ -3,7 +3,7 @@ import numpy as np
 sys.path.append('../..')
 
 from util.utils import LinearSchedule
-from util.plot import plotLearningCurve
+from util.plot import *
 from agent.syn_agent.syn_dqn_agent import *
 from env_dense_r import ScoopEnv
 
@@ -64,8 +64,9 @@ class Agent(SynDQNAgent):
         saving_dir = '/home/ur5/thesis/rdd_rl/scoop_vision/data/syn_dqn'
         SynDQNAgent.__init__(self, model, envs, exploration, gamma, memory_size, batch_size, target_update_frequency,
                              saving_dir, min_mem)
-        self.state_padding = (torch.zeros(self.envs[0].observation_space[0].shape, device=self.device).unsqueeze(0),
-                              torch.zeros(self.envs[0].observation_space[1].shape, device=self.device).unsqueeze(0))
+        if envs is not None:
+            self.state_padding = (torch.zeros(self.envs[0].observation_space[0].shape, device=self.device).unsqueeze(0),
+                                  torch.zeros(self.envs[0].observation_space[1].shape, device=self.device).unsqueeze(0))
 
     def getStateFromObs(self, obss):
         states = map(lambda x: (torch.tensor(x[0], device=self.device, dtype=torch.float).unsqueeze(0),
@@ -105,12 +106,17 @@ class Agent(SynDQNAgent):
 
 
 if __name__ == '__main__':
-    envs = []
-    for i in range(4):
-        env = ScoopEnv(19997 + i)
-        envs.append(env)
+    # envs = []
+    # for i in range(8):
+    #     env = ScoopEnv(19997 + i)
+    #     envs.append(env)
+    #
+    # agent = Agent(DQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
+    #               envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=200)
+    # agent.train(100000, 200, 500)
 
-    agent = Agent(DQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
-                  envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=200)
-    agent.train(100000, 200, 500)
+    agent = Agent(None, None, None)
+    agent.loadCheckpoint('20190221140454', data_only=True)
+    plotLearningCurve(agent.episode_rewards)
+    plt.show()
 
