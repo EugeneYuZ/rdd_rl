@@ -117,12 +117,15 @@ class ScoopEnv:
         # cube in wrong position
         while any(np.isnan(cube_position)):
             res, cube_position = utils.getObjectPosition(self.sim_client, self.cube)
-        if cube_position[0] < self.cube_start_position[0] - self.cube_size[0] or \
-                cube_position[0] > self.cube_start_position[0] + self.cube_size[0] or \
-                cube_position[1] < self.cube_start_position[1] - self.cube_size[1] or \
-                cube_position[1] > self.cube_start_position[1] + self.cube_size[1]:
+        if not (self.cube_start_position[0] - self.cube_size[0] < cube_position[0]
+                < self.cube_start_position[0] + self.cube_size[0] and
+                self.cube_start_position[1] - self.cube_size[1] < cube_position[1]
+                < self.cube_start_position[1] + self.cube_size[1] and
+                self.cube_start_position[2] - self.cube_size[2] < cube_position[2]
+                < self.cube_start_position[2] + self.cube_size[2] and
+                cube_orientation[0] < 0.1):
             # print 'Wrong cube position: ', cube_position
-            return None, self.getReward(), True, None
+            return None, -10, True, None
 
         # cube is lifted
         if cube_orientation[0] < -0.02:

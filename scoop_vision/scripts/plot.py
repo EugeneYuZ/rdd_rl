@@ -14,6 +14,8 @@ if __name__ == '__main__':
     agent.loadCheckpoint('wrist')
     agent.episode_rewards[671] = 0
     plotLearningCurve(agent.episode_rewards[:3000], label='wrist', color='g')
+    agent.loadCheckpoint('stack')
+    plotLearningCurve(agent.episode_rewards[:3000], label='stack', color='yellow')
 
-    plt.ylim(bottom=-5)
+    plt.ylim(bottom=-20)
     plt.show()

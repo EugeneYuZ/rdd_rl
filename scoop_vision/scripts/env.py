@@ -24,7 +24,7 @@ class ScoopEnv:
         # Create UR5 and restart simulator
         self.rdd = RDD(self.sim_client)
         self.ur5 = UR5(self.sim_client, self.rdd)
-        self.sensor = VisionSensor(self.sim_client, 'Vision_sensor', None, None, True, False)
+        self.sensor = VisionSensor(self.sim_client, 'Vision_sensor_top', None, None, True, False)
         self.nA = 4
 
         self.observation_space = (np.zeros((3, 64, 64)), np.zeros((1, 20)))
@@ -112,15 +112,18 @@ class ScoopEnv:
         # cube in wrong position
         while any(np.isnan(cube_position)):
             res, cube_position = utils.getObjectPosition(self.sim_client, self.cube)
-        if cube_position[0] < self.cube_start_position[0] - self.cube_size[0] or \
-                cube_position[0] > self.cube_start_position[0] + self.cube_size[0] or \
-                cube_position[1] < self.cube_start_position[1] - self.cube_size[1] or \
-                cube_position[1] > self.cube_start_position[1] + self.cube_size[1]:
+        if not (self.cube_start_position[0] - self.cube_size[0] < cube_position[0]
+                < self.cube_start_position[0] + self.cube_size[0] and
+                self.cube_start_position[1] - self.cube_size[1] < cube_position[1]
+                < self.cube_start_position[1] + self.cube_size[1] and
+                self.cube_start_position[2] - self.cube_size[2] < cube_position[2]
+                < self.cube_start_position[2] + self.cube_size[2] and
+                cube_orientation[0] < 0.1):
             # print 'Wrong cube position: ', cube_position
             return None, 0, True, None
 
         # cube is lifted
-        if cube_orientation[0] < -0.05:
+        if cube_orientation[0] < -0.02:
             return None, 1, True, None
 
         # cube is not lifted
