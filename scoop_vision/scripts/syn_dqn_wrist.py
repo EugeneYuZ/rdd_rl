@@ -5,7 +5,13 @@ sys.path.append('../..')
 from util.utils import LinearSchedule
 from util.plot import *
 from agent.syn_agent.syn_dqn_agent import *
-from env_dense_r import ScoopEnv
+from env_dense_r import *
+
+
+class ScoopEnvWrist(ScoopEnv):
+    def __init__(self, port=19997):
+        ScoopEnv.__init__(self, port)
+        self.sensor = VisionSensor(self.sim_client, 'Vision_sensor_wrist', None, None, True, False)
 
 
 class DQN(torch.nn.Module):
@@ -61,9 +67,9 @@ class Agent(SynDQNAgent):
     def __init__(self, model, envs, exploration,
                  gamma=0.99, memory_size=100000, batch_size=64, target_update_frequency=1000, saving_dir=None,
                  min_mem=1000):
-        saving_dir = '/home/ur5/thesis/rdd_rl/scoop_vision/data/syn_dqn'
         SynDQNAgent.__init__(self, model, envs, exploration, gamma, memory_size, batch_size, target_update_frequency,
                              saving_dir, min_mem)
+        self.saving_dir = '/home/ur5/thesis/rdd_rl/scoop_vision/data/syn_dqn_wrist'
         if envs is not None:
             self.state_padding = (torch.zeros(self.envs[0].observation_space[0].shape, device=self.device).unsqueeze(0),
                                   torch.zeros(self.envs[0].observation_space[1].shape, device=self.device).unsqueeze(0))
@@ -106,18 +112,18 @@ class Agent(SynDQNAgent):
 
 
 if __name__ == '__main__':
-    envs = []
-    for i in range(1):
-        env = ScoopEnv(21000 + i)
-        envs.append(env)
+    # envs = []
+    # for i in range(8):
+    #     env = ScoopEnvWrist(19997 + i)
+    #     envs.append(env)
+    #
+    # agent = Agent(DQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
+    #               envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=200)
+    # agent.train(100000, 200, 500)
 
-    agent = Agent(DQN(envs[0].observation_space[0].shape, envs[0].observation_space[1].shape, 4),
-                  envs, LinearSchedule(10000, 0.1), batch_size=128, min_mem=200)
-    agent.loadCheckpoint('20190221140454', load_memory=False)
-    agent.train(100000, 200, 500)
-
-    # agent = Agent(None, None, None)
-    # agent.loadCheckpoint('20190221140454', data_only=True)
-    # plotLearningCurve(agent.episode_rewards)
-    # plt.show()
+    agent = Agent(None, None, None)
+    agent.loadCheckpoint('20190221163755', data_only=True)
+    agent.episode_rewards[671] = 0
+    plotLearningCurve(agent.episode_rewards)
+    plt.show()
 

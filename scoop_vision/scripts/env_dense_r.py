@@ -24,7 +24,7 @@ class ScoopEnv:
         # Create UR5 and restart simulator
         self.rdd = RDD(self.sim_client)
         self.ur5 = UR5(self.sim_client, self.rdd)
-        self.sensor = VisionSensor(self.sim_client, 'Vision_sensor', None, None, True, False)
+        self.sensor = VisionSensor(self.sim_client, 'Vision_sensor_top', None, None, True, False)
         self.nA = 4
 
         self.observation_space = (np.zeros((3, 64, 64)), np.zeros((1, 20)))
