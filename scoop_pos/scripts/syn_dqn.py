@@ -32,4 +32,5 @@ if __name__ == '__main__':
     agent = Agent(DQN(envs[0].observation_space.shape[0], envs[0].nA), envs, LinearSchedule(10000, 0.1),
                   batch_size=128, min_mem=1000)
     agent.saving_dir = '/home/ur5/thesis/rdd_rl/scoop_pos/data/syn_dqn_dense'
+    agent.loadCheckpoint('20190221191448')
     agent.train(100000, 200, save_freq=500)
